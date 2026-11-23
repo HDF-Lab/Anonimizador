@@ -152,6 +152,7 @@ fun AnonymizerScreen(
         onTogglePiiType = viewModel::onTogglePiiType,
         onMaskingModeChanged = viewModel::onMaskingModeChanged,
         onToggleWhatsAppNoise = viewModel::onToggleWhatsAppNoise,
+        onEnabledTypesChanged = viewModel::onEnabledTypesChanged,
 
         onCopyClick = {
             val text = uiState.sanitizedText
@@ -226,6 +227,7 @@ fun AnonymizerContent(
     onTogglePiiType: (PiiType) -> Unit,
     onMaskingModeChanged: (MaskMode) -> Unit,
     onToggleWhatsAppNoise: (Boolean) -> Unit,
+    onEnabledTypesChanged: (Set<PiiType>) -> Unit,
     onCopyClick: () -> Unit,
     onClearClick: () -> Unit,
     onPickFileClick: () -> Unit,
@@ -379,6 +381,7 @@ fun AnonymizerContent(
             cleanWhatsAppNoise = uiState.cleanWhatsAppNoise,
             isProcessing = uiState.isProcessing,
 
+            onEnabledTypesChanged = onEnabledTypesChanged,
             onTogglePiiType = onTogglePiiType,
             onMaskingModeChanged = onMaskingModeChanged,
             onToggleWhatsAppNoise = onToggleWhatsAppNoise,
@@ -429,7 +432,10 @@ fun AnonymizerContent(
             }
         )
     }
+
 }
+
+
 
 // -----------------------------------------------------
 // Previews
@@ -460,6 +466,7 @@ private fun AnonymizerScreenPreview() {
                 removedSystemLinesCount = 2
             ),
 
+            onEnabledTypesChanged = {},
             onInputTextChanged = {},
             onTogglePiiType = {},
             onMaskingModeChanged = {},

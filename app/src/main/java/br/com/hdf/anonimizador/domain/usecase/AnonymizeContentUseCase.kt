@@ -3,14 +3,17 @@ package br.com.hdf.anonimizador.domain.usecase
 
 import br.com.hdf.anonimizador.domain.detector.PiiDetector
 import br.com.hdf.anonimizador.domain.detector.SpanConsolidator
+import br.com.hdf.anonimizador.domain.masking.TextMasker
 import br.com.hdf.anonimizador.domain.model.AnonymizationOutput
+import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.PiiMatch
 import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
-import br.com.hdf.anonimizador.domain.masking.TextMasker
-import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 class AnonymizeContentUseCase(
     private val whatsAppParser: WhatsAppParser,
@@ -27,26 +30,39 @@ class AnonymizeContentUseCase(
             return emptyOutput()
         }
 
+        val context = currentCoroutineContext()
+
+        context.ensureActive()
+
         val prepared = prepareText(request)
 
-        // Detectores convencionais: CPF, e-mail, telefone etc.
+        context.ensureActive()
+
         val detectedMatches = detectInParallel(
             text = prepared.text,
             enabledTypes = request.enabledTypes
         )
 
-        // Combina os matches dos detectores com os participantes do WhatsApp.
+        context.ensureActive()
+
         val allMatches = detectedMatches + prepared.participantMatches
 
-        // Resolve eventuais sobreposições.
-        val consolidatedMatches = spanConsolidator.consolidate(allMatches)
+        val consolidatedMatches = spanConsolidator.consolidate(
+            text = prepared.text,
+            matches = allMatches
+        )
 
-        // Aplica a anonimização e constrói o vault reversível.
-        return textMasker.mask(
+        context.ensureActive()
+
+        val output = textMasker.mask(
             text = prepared.text,
             matches = consolidatedMatches,
             mode = request.mode
-        ).copy(
+        )
+
+        context.ensureActive()
+
+        return output.copy(
             removedSystemLinesCount = prepared.removedLines
         )
     }
@@ -54,6 +70,10 @@ class AnonymizeContentUseCase(
     private suspend fun prepareText(
         request: AnonymizeRequest
     ): PreparedText {
+
+        val context = currentCoroutineContext()
+
+        context.ensureActive()
 
         val shouldParseWhatsApp =
             request.cleanWhatsAppNoise &&
@@ -69,8 +89,8 @@ class AnonymizeContentUseCase(
 
         val parsed = whatsAppParser.parseAndClean(request.rawText)
 
-        // O parser sempre preserva os nomes.
-        // A configuração decide se eles serão anonimizados.
+        context.ensureActive()
+
         val participantMatches =
             if (PiiType.PARTICIPANTE_WHATSAPP in request.enabledTypes) {
                 parsed.participantMatches
@@ -88,7 +108,7 @@ class AnonymizeContentUseCase(
     private suspend fun detectInParallel(
         text: String,
         enabledTypes: Set<PiiType>
-    ) = coroutineScope {
+    ): List<PiiMatch> = coroutineScope {
 
         if (enabledTypes.isEmpty()) {
             return@coroutineScope emptyList()
@@ -111,7 +131,7 @@ class AnonymizeContentUseCase(
 
     private data class PreparedText(
         val text: String,
-        val participantMatches: List<br.com.hdf.anonimizador.domain.model.PiiMatch>,
+        val participantMatches: List<PiiMatch>,
         val removedLines: Int
     )
 }

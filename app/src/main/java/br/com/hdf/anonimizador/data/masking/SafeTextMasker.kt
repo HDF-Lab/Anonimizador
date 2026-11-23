@@ -6,6 +6,8 @@ import br.com.hdf.anonimizador.domain.model.AnonymizationOutput
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiMatch
 import br.com.hdf.anonimizador.domain.model.PiiType
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import javax.inject.Inject
 
 class SafeTextMasker @Inject constructor() : TextMasker {
@@ -23,31 +25,35 @@ class SafeTextMasker @Inject constructor() : TextMasker {
             )
         }
 
+        val context = currentCoroutineContext()
+
+        context.ensureActive()
+
         val orderedMatches = matches.sortedWith(
             compareBy<PiiMatch> { it.startIndex }
                 .thenByDescending { it.endIndex }
                 .thenBy { it.type.ordinal }
         )
 
-        validateMatches(text, orderedMatches)
+        validateMatches(
+            text = text,
+            matches = orderedMatches
+        )
 
         val countersByType = mutableMapOf<PiiType, Int>()
-        val tagByOriginalValue =
-            mutableMapOf<Pair<PiiType, String>, String>()
-
+        val tagByOriginalValue = mutableMapOf<Pair<PiiType, String>, String>()
         val counts = mutableMapOf<PiiType, Int>()
+        val resolvedMatches = mutableListOf<ResolvedMatch>()
 
-        val resolvedTags = orderedMatches.map { match ->
+        for (match in orderedMatches) {
 
-            val originalValue = text.substring(
-                match.startIndex,
-                match.endIndex
-            )
+            context.ensureActive()
+
+            val originalValue = match.originalValue
+            val key = match.type to originalValue
 
             counts[match.type] =
                 (counts[match.type] ?: 0) + 1
-
-            val key = match.type to originalValue
 
             val tag = tagByOriginalValue.getOrPut(key) {
                 val nextIndex =
@@ -58,16 +64,22 @@ class SafeTextMasker @Inject constructor() : TextMasker {
                 "[${match.type.name}_$nextIndex]"
             }
 
-            ResolvedMatch(
-                match = match,
-                tag = tag
+            resolvedMatches.add(
+                ResolvedMatch(
+                    match = match,
+                    tag = tag
+                )
             )
         }
 
+        context.ensureActive()
+
         val sanitizedText = replaceMatches(
             text = text,
-            resolvedMatches = resolvedTags
+            resolvedMatches = resolvedMatches
         )
+
+        context.ensureActive()
 
         val reversalVault = buildReversalVault(
             tagByOriginalValue = tagByOriginalValue,
@@ -81,18 +93,22 @@ class SafeTextMasker @Inject constructor() : TextMasker {
         )
     }
 
-    private fun replaceMatches(
+    private suspend fun replaceMatches(
         text: String,
         resolvedMatches: List<ResolvedMatch>
     ): String {
 
+        val context = currentCoroutineContext()
         val builder = StringBuilder(text)
 
-        resolvedMatches.asReversed().forEach { resolved ->
+        for ((match, tag) in resolvedMatches.asReversed()) {
+
+            context.ensureActive()
+
             builder.replace(
-                resolved.match.startIndex,
-                resolved.match.endIndex,
-                resolved.tag
+                match.startIndex,
+                match.endIndex,
+                tag
             )
         }
 
@@ -118,34 +134,26 @@ class SafeTextMasker @Inject constructor() : TextMasker {
         matches: List<PiiMatch>
     ) {
 
-        matches.forEachIndexed { index, match ->
+        var maximumEndIndex = -1
+        var previousMatch: PiiMatch? = null
 
-            require(
-                match.startIndex >= 0 &&
-                        match.endIndex <= text.length &&
-                        match.startIndex < match.endIndex
-            ) {
-                "Intervalo inválido para ${match.type}: " +
+        for (match in matches) {
+
+            require(match.isValidFor(text)) {
+                "Intervalo ou conteúdo inválido para ${match.type}: " +
                         "${match.startIndex}..${match.endIndex}"
             }
 
-            val actualValue = text.substring(
-                match.startIndex,
-                match.endIndex
-            )
+            val previous = previousMatch
 
-            require(actualValue == match.originalValue) {
-                "O valor original não corresponde ao intervalo " +
-                        "para ${match.type}."
+            require(match.startIndex >= maximumEndIndex) {
+                "Foram encontrados intervalos sobrepostos: " +
+                        "${previous?.type} e ${match.type}."
             }
 
-            if (index > 0) {
-                val previous = matches[index - 1]
-
-                require(previous.endIndex <= match.startIndex) {
-                    "Foram encontrados intervalos sobrepostos: " +
-                            "${previous.type} e ${match.type}."
-                }
+            if (match.endIndex > maximumEndIndex) {
+                maximumEndIndex = match.endIndex
+                previousMatch = match
             }
         }
     }

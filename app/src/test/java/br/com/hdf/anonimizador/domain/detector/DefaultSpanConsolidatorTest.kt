@@ -11,6 +11,8 @@ class DefaultSpanConsolidatorTest {
 
     private lateinit var consolidator: DefaultSpanConsolidator
 
+    private val text = "x".repeat(100)
+
     @Before
     fun setUp() {
         consolidator = DefaultSpanConsolidator()
@@ -18,7 +20,20 @@ class DefaultSpanConsolidatorTest {
 
     @Test
     fun `deve retornar lista vazia quando nao houver matches`() {
-        val result = consolidator.consolidate(emptyList())
+        val result = consolidator.consolidate(
+            text = text,
+            matches = emptyList()
+        )
+
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `deve retornar lista vazia quando texto estiver vazio`() {
+        val result = consolidator.consolidate(
+            text = "",
+            matches = listOf(createMatch(0, 1))
+        )
 
         assertTrue(result.isEmpty())
     }
@@ -27,7 +42,10 @@ class DefaultSpanConsolidatorTest {
     fun `deve preservar um unico match`() {
         val match = createMatch(0, 11)
 
-        val result = consolidator.consolidate(listOf(match))
+        val result = consolidator.consolidate(
+            text = text,
+            matches = listOf(match)
+        )
 
         assertEquals(listOf(match), result)
     }
@@ -39,7 +57,8 @@ class DefaultSpanConsolidatorTest {
         val third = createMatch(35, 50, PiiType.TELEFONE_BR)
 
         val result = consolidator.consolidate(
-                listOf(first, second, third)
+            text = text,
+            matches = listOf(first, second, third)
         )
 
         assertEquals(listOf(first, second, third), result)
@@ -51,7 +70,8 @@ class DefaultSpanConsolidatorTest {
         val second = createMatch(10, 20)
 
         val result = consolidator.consolidate(
-                listOf(first, second)
+            text = text,
+            matches = listOf(first, second)
         )
 
         assertEquals(listOf(first, second), result)
@@ -63,7 +83,8 @@ class DefaultSpanConsolidatorTest {
         val larger = createMatch(0, 12, PiiType.CPF)
 
         val result = consolidator.consolidate(
-                listOf(smaller, larger)
+            text = text,
+            matches = listOf(smaller, larger)
         )
 
         assertEquals(listOf(larger), result)
@@ -72,40 +93,42 @@ class DefaultSpanConsolidatorTest {
     @Test
     fun `deve escolher maior intervalo independentemente da confianca`() {
         val smaller = createMatch(
-                start = 0,
-                end = 8,
-                confidence = 1.0f
+            start = 0,
+            end = 8,
+            confidence = 1.0f
         )
 
         val larger = createMatch(
-                start = 0,
-                end = 12,
-                confidence = 0.5f
+            start = 0,
+            end = 12,
+            confidence = 0.5f
         )
 
         val result = consolidator.consolidate(
-                listOf(smaller, larger)
+            text = text,
+            matches = listOf(smaller, larger)
         )
 
         assertEquals(listOf(larger), result)
     }
 
     @Test
-    fun `deve usar maior confianca quando os intervalos tiverem mesmo tamanho`() {
+    fun `deve usar maior confianca quando intervalos tiverem mesmo tamanho`() {
         val lessConfident = createMatch(
-                start = 0,
-                end = 11,
-                confidence = 0.7f
+            start = 0,
+            end = 11,
+            confidence = 0.7f
         )
 
         val moreConfident = createMatch(
-                start = 1,
-                end = 12,
-                confidence = 0.9f
+            start = 1,
+            end = 12,
+            confidence = 0.9f
         )
 
         val result = consolidator.consolidate(
-                listOf(lessConfident, moreConfident)
+            text = text,
+            matches = listOf(lessConfident, moreConfident)
         )
 
         assertEquals(listOf(moreConfident), result)
@@ -114,45 +137,44 @@ class DefaultSpanConsolidatorTest {
     @Test
     fun `deve usar maior prioridade quando comprimento e confianca forem iguais`() {
         val lowerPriority = createMatch(
-                start = 0,
-                end = 11,
-                confidence = 0.9f,
-                priority = 50
+            start = 0,
+            end = 11,
+            confidence = 0.9f,
+            priority = 50
         )
 
         val higherPriority = createMatch(
-                start = 1,
-                end = 12,
-                confidence = 0.9f,
-                priority = 100
+            start = 1,
+            end = 12,
+            confidence = 0.9f,
+            priority = 100
         )
 
         val result = consolidator.consolidate(
-                listOf(lowerPriority, higherPriority)
+            text = text,
+            matches = listOf(lowerPriority, higherPriority)
         )
 
         assertEquals(listOf(higherPriority), result)
     }
 
     @Test
-    fun `deve usar ordinal do tipo como ultimo criterio de desempate`() {
-        val firstType = PiiType.CPF
-        val secondType = PiiType.EMAIL
-
+    fun `deve usar ordinal do tipo como criterio de desempate`() {
         val first = createMatch(
-                start = 0,
-                end = 11,
-                type = firstType
+            start = 0,
+            end = 11,
+            type = PiiType.CPF
         )
 
         val second = createMatch(
-                start = 0,
-                end = 11,
-                type = secondType
+            start = 0,
+            end = 11,
+            type = PiiType.EMAIL
         )
 
         val result = consolidator.consolidate(
-                listOf(second, first)
+            text = text,
+            matches = listOf(second, first)
         )
 
         assertEquals(listOf(first), result)
@@ -165,7 +187,8 @@ class DefaultSpanConsolidatorTest {
         val inner = createMatch(5, 10)
 
         val result = consolidator.consolidate(
-                listOf(inner, middle, outer)
+            text = text,
+            matches = listOf(inner, middle, outer)
         )
 
         assertEquals(listOf(outer), result)
@@ -178,20 +201,22 @@ class DefaultSpanConsolidatorTest {
         val last = createMatch(8, 13)
 
         val result = consolidator.consolidate(
-                listOf(first, middle, last)
+            text = text,
+            matches = listOf(first, middle, last)
         )
 
         assertEquals(listOf(first, last), result)
     }
 
     @Test
-    fun `deve descartar todos os matches menores que conflitam com um maior`() {
+    fun `deve descartar matches menores que conflitam com um maior`() {
         val first = createMatch(0, 5)
         val second = createMatch(5, 10)
         val larger = createMatch(0, 10)
 
         val result = consolidator.consolidate(
-                listOf(first, second, larger)
+            text = text,
+            matches = listOf(first, second, larger)
         )
 
         assertEquals(listOf(larger), result)
@@ -202,10 +227,36 @@ class DefaultSpanConsolidatorTest {
         val negativeStart = createMatch(-1, 5)
         val zeroLength = createMatch(5, 5)
         val inverted = createMatch(10, 5)
+        val outsideText = createMatch(95, 105)
         val valid = createMatch(15, 25)
 
         val result = consolidator.consolidate(
-                listOf(negativeStart, zeroLength, inverted, valid)
+            text = text,
+            matches = listOf(
+                negativeStart,
+                zeroLength,
+                inverted,
+                outsideText,
+                valid
+            )
+        )
+
+        assertEquals(listOf(valid), result)
+    }
+
+    @Test
+    fun `deve ignorar match cujo valor original nao corresponde ao texto`() {
+        val invalid = createMatch(
+            start = 0,
+            end = 5,
+            originalValue = "abcde"
+        )
+
+        val valid = createMatch(10, 15)
+
+        val result = consolidator.consolidate(
+            text = text,
+            matches = listOf(invalid, valid)
         )
 
         assertEquals(listOf(valid), result)
@@ -218,24 +269,28 @@ class DefaultSpanConsolidatorTest {
         val third = createMatch(20, 25)
 
         val result = consolidator.consolidate(
-                listOf(third, first, second)
+            text = text,
+            matches = listOf(third, first, second)
         )
 
         assertEquals(listOf(first, second, third), result)
     }
 
     private fun createMatch(
-            start: Int,
-            end: Int,
-            type: PiiType = PiiType.CPF,
-            confidence: Float = 1.0f,
-            priority: Int = 0
+        start: Int,
+        end: Int,
+        type: PiiType = PiiType.CPF,
+        confidence: Float = 1.0f,
+        priority: Int = 0,
+        originalValue: String = "x".repeat(
+            (end - start).coerceAtLeast(0)
+        )
     ) = PiiMatch(
-            startIndex = start,
-            endIndex = end,
-            originalValue = "x".repeat((end - start).coerceAtLeast(0)),
-    type = type,
-    confidence = confidence,
-    detectorPriority = priority
+        startIndex = start,
+        endIndex = end,
+        originalValue = originalValue,
+        type = type,
+        confidence = confidence,
+        detectorPriority = priority
     )
 }

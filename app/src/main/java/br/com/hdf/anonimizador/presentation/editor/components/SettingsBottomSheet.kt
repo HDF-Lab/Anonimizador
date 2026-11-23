@@ -1,8 +1,6 @@
+
 package br.com.hdf.anonimizador.presentation.editor.components
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,21 +9,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.ExperimentalMaterial3Api
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.presentation.editor.utils.toDisplayLabel
@@ -38,6 +39,7 @@ fun SettingsBottomSheet(
     cleanWhatsAppNoise: Boolean,
     isProcessing: Boolean,
     onTogglePiiType: (PiiType) -> Unit,
+    onEnabledTypesChanged: (Set<PiiType>) -> Unit,
     onMaskingModeChanged: (MaskMode) -> Unit,
     onToggleWhatsAppNoise: (Boolean) -> Unit,
     onDismiss: () -> Unit
@@ -45,6 +47,10 @@ fun SettingsBottomSheet(
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true
     )
+
+    val allTypes = PiiType.entries.toSet()
+    val allSelected = enabledTypes.containsAll(allTypes)
+    val noneSelected = enabledTypes.isEmpty()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -69,34 +75,71 @@ fun SettingsBottomSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            if (isProcessing) {
+                Text(
+                    text = "Atualizando resultado...",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
             HorizontalDivider()
 
-            // Tipos de dados pessoais.
+            // Tipos de dados pessoais
             Text(
                 text = "Tipos de dados",
                 style = MaterialTheme.typography.titleMedium
             )
 
+            // Ações em lote
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = {
+                        onEnabledTypesChanged(allTypes)
+                    },
+                    enabled = !allSelected
+                ) {
+                    Text("Selecionar todos")
+                }
+
+                TextButton(
+                    onClick = {
+                        onEnabledTypesChanged(emptySet())
+                    },
+                    enabled = !noneSelected
+                ) {
+                    Text("Desmarcar todos")
+                }
+            }
+
+            // Seleção individual
             PiiType.entries.forEach { type ->
+                val isChecked = type in enabledTypes
+                val label = type.toDisplayLabel()
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(
-                            enabled = !isProcessing
-                        ) {
-                            onTogglePiiType(type)
-                        }
-                        .padding(vertical = 4.dp),
+                        .toggleable(
+                            value = isChecked,
+                            role = Role.Checkbox,
+                            onValueChange = {
+                                onTogglePiiType(type)
+                            }
+                        )
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
-                        checked = type in enabledTypes,
-                        onCheckedChange = null,
-                        enabled = !isProcessing
+                        checked = isChecked,
+                        onCheckedChange = null
                     )
 
                     Text(
-                        text = type.toDisplayLabel(),
+                        text = label,
                         modifier = Modifier.padding(start = 8.dp),
                         style = MaterialTheme.typography.bodyLarge
                     )
@@ -105,30 +148,31 @@ fun SettingsBottomSheet(
 
             HorizontalDivider()
 
-            // Modo de mascaramento.
+            // Modo de anonimização
             Text(
                 text = "Modo de anonimização",
                 style = MaterialTheme.typography.titleMedium
             )
 
             MaskMode.entries.forEach { mode ->
+                val isSelected = maskingMode == mode
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(
-                            enabled = !isProcessing
-                        ) {
-                            onMaskingModeChanged(mode)
-                        }
-                        .padding(vertical = 4.dp),
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = {
+                                onMaskingModeChanged(mode)
+                            }
+                        )
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
-                        selected = maskingMode == mode,
-                        onClick = {
-                            onMaskingModeChanged(mode)
-                        },
-                        enabled = !isProcessing
+                        selected = isSelected,
+                        onClick = null
                     )
 
                     Text(
@@ -141,15 +185,15 @@ fun SettingsBottomSheet(
 
             HorizontalDivider()
 
-            // Limpeza de ruídos do WhatsApp.
+            // Limpeza de ruídos do WhatsApp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(
-                        enabled = !isProcessing
-                    ) {
-                        onToggleWhatsAppNoise(!cleanWhatsAppNoise)
-                    }
+                    .toggleable(
+                        value = cleanWhatsAppNoise,
+                        role = Role.Switch,
+                        onValueChange = onToggleWhatsAppNoise
+                    )
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -171,8 +215,7 @@ fun SettingsBottomSheet(
 
                 Switch(
                     checked = cleanWhatsAppNoise,
-                    onCheckedChange = null,
-                    enabled = !isProcessing
+                    onCheckedChange = null
                 )
             }
 

@@ -1,3 +1,4 @@
+
 package br.com.hdf.anonimizador.presentation.editor
 
 import androidx.lifecycle.ViewModel
@@ -10,9 +11,12 @@ import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
+private const val INPUT_DEBOUNCE_MS = 300L
+
 @HiltViewModel
 class AnonymizerViewModel @Inject constructor(
     private val anonymizeContentUseCase: AnonymizeContentUseCase,
@@ -30,45 +36,137 @@ class AnonymizerViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AnonymizerUiState())
-    val uiState: StateFlow<AnonymizerUiState> = _uiState.asStateFlow()
+
+    val uiState: StateFlow<AnonymizerUiState> =
+        _uiState.asStateFlow()
 
     private var processingJob: Job? = null
+    private var extractionJob: Job? = null
 
-    fun onInputTextChanged(extractedText: String) {
-        _uiState.update { it.copy(inputText = extractedText, errorMessage = null) }
-        scheduleAnonymization(debounceMs = 0L)
+    // -------------------------------------------------
+    // Entrada de texto
+    // -------------------------------------------------
+
+    fun onInputTextChanged(text: String) {
+        extractionJob?.cancel()
+        extractionJob = null
+
+        updateInputText(
+            text = text,
+            debounceMs = INPUT_DEBOUNCE_MS
+        )
     }
+
+    private fun updateInputText(
+        text: String,
+        debounceMs: Long
+    ) {
+        if (_uiState.value.inputText == text) return
+
+        _uiState.update {
+            it.copy(
+                inputText = text,
+                errorMessage = null
+            )
+        }
+
+        scheduleAnonymization(debounceMs)
+    }
+
+    // -------------------------------------------------
+    // Configurações
+    // -------------------------------------------------
 
     fun onTogglePiiType(type: PiiType) {
         _uiState.update { current ->
-            val updated = if (type in current.enabledTypes) {
-                current.enabledTypes - type
-            } else {
-                current.enabledTypes + type
+            val updatedTypes = current.enabledTypes.toMutableSet()
+
+            if (!updatedTypes.add(type)) {
+                updatedTypes.remove(type)
             }
-            current.copy(enabledTypes = updated)
+
+            current.copy(
+                enabledTypes = updatedTypes
+            )
         }
+
+        scheduleAnonymization(debounceMs = 0L)
+    }
+
+    fun onEnabledTypesChanged(types: Set<PiiType>) {
+        val currentTypes = _uiState.value.enabledTypes
+
+        if (currentTypes == types) return
+
+        _uiState.update {
+            it.copy(
+                enabledTypes = types.toSet()
+            )
+        }
+
         scheduleAnonymization(debounceMs = 0L)
     }
 
     fun onMaskingModeChanged(mode: MaskMode) {
-        _uiState.update { it.copy(maskingMode = mode) }
+        if (_uiState.value.maskingMode == mode) return
+
+        _uiState.update {
+            it.copy(maskingMode = mode)
+        }
+
         scheduleAnonymization(debounceMs = 0L)
     }
 
     fun onToggleWhatsAppNoise(enabled: Boolean) {
-        _uiState.update { it.copy(cleanWhatsAppNoise = enabled) }
+        if (_uiState.value.cleanWhatsAppNoise == enabled) return
+
+        _uiState.update {
+            it.copy(cleanWhatsAppNoise = enabled)
+        }
+
         scheduleAnonymization(debounceMs = 0L)
     }
 
+    // -------------------------------------------------
+    // Seleção de arquivo
+    // -------------------------------------------------
+
     fun onFileSelected(source: DocumentSource) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
-            runCatching {
-                documentExtractor.extractText(source)
-            }.onSuccess { extractedText ->
-                onInputTextChanged(extractedText)
-            }.onFailure {
+        processingJob?.cancel()
+        processingJob = null
+
+        extractionJob?.cancel()
+
+        extractionJob = viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isProcessing = true,
+                    errorMessage = null
+                )
+            }
+
+            try {
+                val extractedText = withContext(computationDispatcher) {
+                    documentExtractor.extractText(source)
+                }
+
+                currentCoroutineContext().ensureActive()
+
+                extractionJob = null
+
+                updateInputText(
+                    text = extractedText,
+                    debounceMs = 0L
+                )
+
+            } catch (exception: CancellationException) {
+                throw exception
+
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+
+                extractionJob = null
+
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
@@ -79,13 +177,14 @@ class AnonymizerViewModel @Inject constructor(
         }
     }
 
-    fun clearSession() {
-        processingJob?.cancel()
-        _uiState.value = AnonymizerUiState()
-    }
+    // -------------------------------------------------
+    // Anonimização
+    // -------------------------------------------------
 
     private fun scheduleAnonymization(debounceMs: Long) {
         processingJob?.cancel()
+        processingJob = null
+
         val snapshot = _uiState.value
 
         if (snapshot.inputText.isBlank()) {
@@ -94,40 +193,85 @@ class AnonymizerViewModel @Inject constructor(
                     sanitizedText = "",
                     entityCounts = emptyMap(),
                     removedSystemLinesCount = 0,
-                    isProcessing = false
+                    isProcessing = false,
+                    errorMessage = null
                 )
             }
             return
         }
 
         processingJob = viewModelScope.launch {
-            if (debounceMs > 0) delay(debounceMs.milliseconds)
-            _uiState.update { it.copy(isProcessing = true) }
+            try {
+                if (debounceMs > 0L) {
+                    delay(debounceMs.milliseconds)
+                }
 
-            val output = withContext(computationDispatcher) {
-                anonymizeContentUseCase(
-                    AnonymizeRequest(
-                        rawText = snapshot.inputText,
-                        enabledTypes = snapshot.enabledTypes,
-                        mode = snapshot.maskingMode,
-                        cleanWhatsAppNoise = snapshot.cleanWhatsAppNoise
+                currentCoroutineContext().ensureActive()
+
+                _uiState.update {
+                    it.copy(isProcessing = true)
+                }
+
+                val request = AnonymizeRequest(
+                    rawText = snapshot.inputText,
+                    enabledTypes = snapshot.enabledTypes,
+                    mode = snapshot.maskingMode,
+                    cleanWhatsAppNoise = snapshot.cleanWhatsAppNoise
+                )
+
+                val output = withContext(computationDispatcher) {
+                    anonymizeContentUseCase(request)
+                }
+
+                currentCoroutineContext().ensureActive()
+
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = output.sanitizedText,
+                        entityCounts = output.entityCounts,
+                        removedSystemLinesCount = output.removedSystemLinesCount,
+                        isProcessing = false,
+                        errorMessage = null
                     )
-                )
-            }
+                }
 
-            _uiState.update {
-                it.copy(
-                    sanitizedText = output.sanitizedText,
-                    entityCounts = output.entityCounts,
-                    removedSystemLinesCount = output.removedSystemLinesCount,
-                    isProcessing = false
-                )
+            } catch (exception: CancellationException) {
+                throw exception
+
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = "Não foi possível anonimizar o texto."
+                    )
+                }
             }
         }
     }
 
+    // -------------------------------------------------
+    // Limpeza
+    // -------------------------------------------------
+
+    fun clearSession() {
+        processingJob?.cancel()
+        extractionJob?.cancel()
+
+        processingJob = null
+        extractionJob = null
+
+        _uiState.value = AnonymizerUiState()
+    }
+
     override fun onCleared() {
-        clearSession()
+        processingJob?.cancel()
+        extractionJob?.cancel()
+
+        processingJob = null
+        extractionJob = null
+
         super.onCleared()
     }
 }

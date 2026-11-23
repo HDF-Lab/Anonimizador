@@ -1,0 +1,48 @@
+ANONIMIZADOR OFFLINE — PRIVACIDADE E LGPD
+
+O Anonimizador Offline é um utilitário de privacidade que processa localmente textos, documentos PDF e conversas exportadas do WhatsApp, identificando e substituindo informações pessoais antes que sejam compartilhadas com terceiros ou ferramentas de Inteligência Artificial.
+
+PRIVACIDADE POR DESIGN
+
+- Não solicita permissão de acesso à Internet no Android.
+- Realiza a extração, detecção e anonimização diretamente no dispositivo.
+- Não envia documentos para servidores externos.
+- Utiliza FLAG_SECURE nas telas protegidas para restringir capturas de tela e visualização em apps recentes.
+- Mantém o mapeamento de anonimização reversível temporariamente em memória durante a sessão.
+
+PRINCIPAIS RECURSOS
+
+1. INTEGRAÇÃO COM WHATSAPP
+
+- Importação de arquivos TXT e ZIP exportados pelo WhatsApp.
+- Recebimento de arquivos pelo menu Compartilhar do Android.
+- Identificação e remoção de ruídos automáticos, como avisos de criptografia, mensagens de mídia oculta e mensagens apagadas.
+- Substituição dos nomes e números dos participantes por identificadores como [PARTICIPANTE_1], [PARTICIPANTE_2] etc.
+
+2. LEITURA DE DOCUMENTOS
+
+- Importação de arquivos PDF.
+- Extração local de texto utilizando Apache PDFBox Android.
+- Processamento sem envio dos documentos para serviços externos.
+
+3. DETECÇÃO DE DADOS PESSOAIS
+
+Identificação de informações pessoais por meio de detectores especializados:
+
+- CPF e CNPJ, com validação dos documentos.
+- Chaves PIX aleatórias no formato UUID.
+- Telefones brasileiros.
+- Endereços de e-mail.
+- Cartões de crédito, com validação pelo algoritmo de Luhn.
+- Placas de veículos nos padrões antigo e Mercosul.
+- Endereços IPv4.
+
+4. CONTROLE DE ANONIMIZAÇÃO
+
+- Ativação ou desativação individual das categorias de dados.
+- Modo irreversível: substitui os dados identificados sem manter um mapeamento para recuperação.
+- Modo reversível: mantém temporariamente em memória a relação entre os valores originais e seus identificadores, permitindo a recuperação durante a sessão.
+
+OBSERVAÇÃO
+
+A detecção utiliza padrões e validadores específicos e não garante a identificação de todas as informações pessoais presentes em um documento. O conteúdo anonimizado deve ser revisado antes do compartilhamento.

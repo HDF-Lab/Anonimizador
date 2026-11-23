@@ -1,0 +1,4 @@
+• Lançamento inicial (v1.0.0)
+• Higienização 100% offline de textos, PDFs e exportações do WhatsApp (.txt e .zip)
+• Detecção e validação matemática de CPF, CNPJ, Chave PIX, Telefone, Cartão, Placa Mercosul, E-mail e IP
+• Filtros por categoria e modos Irreversível e Reversível na RAM

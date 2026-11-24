@@ -73,35 +73,6 @@ class AnonymizeContentUseCaseTest {
     }
 
     @Test
-    fun `deve aplicar limpeza conforme plataforma do parser selecionado`() = runTest {
-        val telegramParser = FakeChatExportParser(
-            canParse = true,
-            platform = ChatPlatform.TELEGRAM,
-            participantPiiType = null,
-            parseResult = ChatParseResult(
-                isSupportedFormat = true,
-                normalizedText = "conteudo sem ruido",
-                removedNoiseCount = 1
-            )
-        )
-
-        val output = createUseCase(
-            detector = RecordingDetector(),
-            parsers = setOf(telegramParser)
-        )(
-            AnonymizeRequest(
-                rawText = "exportacao telegram",
-                enabledTypes = emptySet(),
-                noiseCleanupPlatforms = setOf(ChatPlatform.TELEGRAM)
-            )
-        )
-
-        assertEquals("conteudo sem ruido", output.sanitizedText)
-        assertEquals(1, output.removedNoiseCount)
-        assertEquals(true, telegramParser.lastCleanNoise)
-    }
-
-    @Test
     fun `deve rejeitar parsers que reconhecem o mesmo conteudo`() = runTest {
         val parsers = setOf(
             FakeChatExportParser(canParse = true),

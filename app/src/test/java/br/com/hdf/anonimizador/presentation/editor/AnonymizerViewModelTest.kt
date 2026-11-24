@@ -3,6 +3,7 @@ package br.com.hdf.anonimizador.presentation.editor
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
 import br.com.hdf.anonimizador.domain.detector.PiiDetector
+import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
 import br.com.hdf.anonimizador.domain.model.DocumentSource
@@ -100,14 +101,17 @@ class AnonymizerViewModelTest {
 
     @Test
     fun `deve apresentar erro quando arquivo falhar`() = runTest {
-        val extractor = FakeDocumentExtractor(error = IllegalArgumentException("Falha"))
+        val extractor = FakeDocumentExtractor(error = DocumentExtractionException.UnsupportedFormat())
         val viewModel = createViewModel(extractor)
 
         viewModel.onFileSelected(DocumentSource("content://document/invalido.txt"))
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isProcessing)
-        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertEquals(
+            "Formato de arquivo não suportado. Use TXT, PDF ou ZIP.",
+            viewModel.uiState.value.errorMessage
+        )
     }
 
     private fun createViewModel(

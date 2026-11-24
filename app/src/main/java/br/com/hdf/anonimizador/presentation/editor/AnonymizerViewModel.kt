@@ -4,6 +4,7 @@ package br.com.hdf.anonimizador.presentation.editor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.hdf.anonimizador.di.DefaultDispatcher
+import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
 import br.com.hdf.anonimizador.domain.model.DocumentSource
@@ -162,6 +163,18 @@ class AnonymizerViewModel @Inject constructor(
             } catch (exception: CancellationException) {
                 throw exception
 
+            } catch (exception: DocumentExtractionException) {
+                currentCoroutineContext().ensureActive()
+
+                extractionJob = null
+
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = mapExtractionError(exception)
+                    )
+                }
+
             } catch (exception: Exception) {
                 currentCoroutineContext().ensureActive()
 
@@ -170,7 +183,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível ler o arquivo selecionado."
+                        errorMessage = "Não foi possível ler o arquivo selecionado. Tente novamente."
                     )
                 }
             }
@@ -238,17 +251,58 @@ class AnonymizerViewModel @Inject constructor(
             } catch (exception: CancellationException) {
                 throw exception
 
+            } catch (exception: IllegalArgumentException) {
+                currentCoroutineContext().ensureActive()
+
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = "Não foi possível validar o conteúdo detectado. Revise o texto e tente novamente."
+                    )
+                }
+
             } catch (exception: Exception) {
                 currentCoroutineContext().ensureActive()
 
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível anonimizar o texto."
+                        errorMessage = "Não foi possível concluir a anonimização. Tente novamente."
                     )
                 }
             }
         }
+    }
+
+    private fun mapExtractionError(
+        exception: DocumentExtractionException
+    ): String = when (exception) {
+        is DocumentExtractionException.UnsupportedFormat ->
+            "Formato de arquivo não suportado. Use TXT, PDF ou ZIP."
+
+        is DocumentExtractionException.FileAccessFailure ->
+            "Não foi possível abrir o arquivo selecionado."
+
+        is DocumentExtractionException.InvalidFileSize ->
+            "O tamanho do arquivo não pôde ser confirmado. Selecione-o novamente."
+
+        is DocumentExtractionException.FileTooLarge ->
+            "O arquivo excede o limite de 20 MB."
+
+        is DocumentExtractionException.ExtractedTextTooLarge ->
+            "O texto extraído excede o limite de 10 MB."
+
+        is DocumentExtractionException.PdfTextTooLarge ->
+            "O PDF produziu texto além do limite de 10 MB."
+
+        is DocumentExtractionException.ZipEntriesLimitExceeded ->
+            "O ZIP contém mais entradas do que o limite suportado."
+
+        is DocumentExtractionException.ZipContentTooLarge ->
+            "O conteúdo descompactado do ZIP excede o limite permitido."
+
+        is DocumentExtractionException.ZipTextFileNotFound ->
+            "Nenhum arquivo TXT foi encontrado dentro do ZIP."
     }
 
     // -------------------------------------------------

@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.OpenableColumns
+import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import io.mockk.every
 import io.mockk.mockk
@@ -92,7 +93,7 @@ class AndroidDocumentExtractorTest {
         every { resolver.getType(uri) } returns "application/octet-stream"
         every { resolver.query(any(), any(), any(), any(), any()) } returns nameCursor
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(DocumentExtractionException.UnsupportedFormat::class.java) {
             runBlocking {
                 extractor.extractText(DocumentSource("content://binary/dados.bin"))
             }
@@ -112,7 +113,7 @@ class AndroidDocumentExtractorTest {
         every { resolver.query(any(), any(), any(), any(), any()) } returns nameCursor
         every { resolver.openInputStream(uri) } returns ByteArrayInputStream(zipBytes)
 
-        assertThrows(IllegalArgumentException::class.java) {
+        assertThrows(DocumentExtractionException.ZipTextFileNotFound::class.java) {
             runBlocking {
                 extractor.extractText(DocumentSource("content://zip/dados.zip"))
             }

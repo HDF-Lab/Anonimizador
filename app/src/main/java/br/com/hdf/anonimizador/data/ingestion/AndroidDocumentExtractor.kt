@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.core.net.toUri
 import br.com.hdf.anonimizador.di.IoDispatcher
+import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
@@ -84,9 +85,7 @@ class AndroidDocumentExtractor @Inject constructor(
             isPlainTextFile(mimeType, fileName) ->
                 extractPlainText(uri)
 
-            else -> throw IllegalArgumentException(
-                "Formato de arquivo não suportado."
-            )
+            else -> throw DocumentExtractionException.UnsupportedFormat()
         }
 
         contextJob.ensureActive()
@@ -120,9 +119,7 @@ class AndroidDocumentExtractor @Inject constructor(
                     entryCount++
 
                     if (entryCount > MAX_ZIP_ENTRIES) {
-                        throw IllegalStateException(
-                            "O ZIP contém entradas demais."
-                        )
+                        throw DocumentExtractionException.ZipEntriesLimitExceeded()
                     }
 
                     if (entry.isDirectory) {
@@ -147,17 +144,13 @@ class AndroidDocumentExtractor @Inject constructor(
                     zipStream.closeEntry()
 
                     if (scannedBytes > MAX_ZIP_SCAN_BYTES) {
-                        throw IllegalStateException(
-                            "O conteúdo do ZIP excede o limite de inspeção."
-                        )
+                        throw DocumentExtractionException.ZipContentTooLarge()
                     }
                 }
             }
         }
 
-        throw IllegalArgumentException(
-            "Nenhum arquivo .txt de conversa encontrado dentro do .zip."
-        )
+        throw DocumentExtractionException.ZipTextFileNotFound()
     }
 
     private suspend fun discardZipEntry(
@@ -181,9 +174,7 @@ class AndroidDocumentExtractor @Inject constructor(
             totalRead += bytesRead
 
             if (totalRead > remainingLimit) {
-                throw IllegalStateException(
-                    "O conteúdo descompactado do ZIP excede o limite permitido."
-                )
+                throw DocumentExtractionException.ZipContentTooLarge()
             }
         }
 
@@ -258,9 +249,7 @@ class AndroidDocumentExtractor @Inject constructor(
             totalRead += bytesRead
 
             if (totalRead > MAX_TEXT_BYTES) {
-                throw IllegalStateException(
-                    "O arquivo de texto excede o limite de 10 MB."
-                )
+                throw DocumentExtractionException.ExtractedTextTooLarge()
             }
 
             output.write(buffer, 0, bytesRead)
@@ -276,15 +265,11 @@ class AndroidDocumentExtractor @Inject constructor(
         val size = resolveFileSize(uri) ?: return
 
         if (size < 0L) {
-            throw IllegalStateException(
-                "O tamanho informado pelo provedor é inválido."
-            )
+            throw DocumentExtractionException.InvalidFileSize()
         }
 
         if (size > MAX_FILE_BYTES) {
-            throw IllegalStateException(
-                "O arquivo excede o limite permitido de 20 MB."
-            )
+            throw DocumentExtractionException.FileTooLarge()
         }
     }
 
@@ -340,9 +325,7 @@ class AndroidDocumentExtractor @Inject constructor(
 
     private fun openStream(uri: Uri): InputStream =
         contentResolver.openInputStream(uri)
-            ?: throw IllegalStateException(
-                "Não foi possível abrir o arquivo."
-            )
+            ?: throw DocumentExtractionException.FileAccessFailure()
 
 
     private class LimitedInputStream(
@@ -387,9 +370,7 @@ class AndroidDocumentExtractor @Inject constructor(
             bytesRead += count
 
             if (bytesRead > maxBytes) {
-                throw IllegalStateException(
-                    "O arquivo excede o limite permitido de 20 MB."
-                )
+                throw DocumentExtractionException.FileTooLarge()
             }
         }
     }
@@ -412,9 +393,7 @@ class AndroidDocumentExtractor @Inject constructor(
             }
 
             if (builder.length + length > maxChars) {
-                throw IllegalStateException(
-                    "O texto extraído do PDF excede o limite permitido."
-                )
+                throw DocumentExtractionException.PdfTextTooLarge()
             }
 
             builder.append(chars, offset, length)

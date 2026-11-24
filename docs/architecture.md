@@ -340,3 +340,10 @@ Potential extensions include:
 - Improved validation and detection policies.
 
 New implementations should follow the existing domain contracts whenever possible, preserving separation of concerns and minimizing changes to existing components.
+
+
+## 10. Application Use Cases
+
+| Use Case | Responsibility | Documentation |
+|---|---|---|
+| AnonymizeContentUseCase | Coordinates content anonymization | [UC-001](usercases/UC001-Anonymize_Content.md) |

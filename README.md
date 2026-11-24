@@ -1,4 +1,4 @@
-
+[![Android CI](https://github.com/HDF-Lab/Anonimizador/actions/workflows/android.yml/badge.svg)](https://github.com/HDF-Lab/Anonimizador/actions/workflows/android.yml)
 # 🛡️ Anonimizador Offline — LGPD & Privacy
 
 An **offline, open-source Android application** for cleaning and anonymizing personal data (PII — Personally Identifiable Information) in text, PDF documents, and exported WhatsApp conversations.

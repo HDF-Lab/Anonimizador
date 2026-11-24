@@ -447,3 +447,22 @@ Preserve the project's fundamental objective:
 **Anonymize sensitive information locally, predictably, and transparently, without compromising user privacy.**
 
 Every architectural or implementation decision should be evaluated against this objective.
+
+
+## 17. Command Execution Policy
+
+**Never execute any command without explicit user approval.**
+
+- Always explain the command and its purpose before execution.
+- Show the exact command to the user.
+- Wait for explicit confirmation before running it.
+- Do not assume approval from previous commands or instructions.
+- Each new command or group of commands requires separate approval.
+- Never execute commands automatically as part of code changes.
+- Do not run build, test, lint, formatting, installation, Git, or cleanup commands without approval.
+- Never execute destructive or potentially irreversible commands without explicit approval.
+- If a command is necessary, suggest it and explain its expected impact instead of executing it.
+
+This policy applies to all execution environments, including terminals, shells, IDE terminals, scripts, and automated tasks.
+
+**Default behavior: propose commands, do not execute them.**

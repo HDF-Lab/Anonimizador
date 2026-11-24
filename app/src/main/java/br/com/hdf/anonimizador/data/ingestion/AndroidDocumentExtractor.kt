@@ -44,6 +44,15 @@ class AndroidDocumentExtractor @Inject constructor(
         private const val MAX_ZIP_SCAN_BYTES = 50 * 1024 * 1024
         private const val MAX_ZIP_ENTRIES = 1_000
         private const val BUFFER_SIZE = 8 * 1024
+
+        internal fun isZipFile(mimeType: String, fileName: String): Boolean =
+            mimeType.contains("zip") || fileName.lowercase().endsWith(".zip")
+
+        internal fun isPdfFile(mimeType: String, fileName: String): Boolean =
+            mimeType == "application/pdf" || fileName.lowercase().endsWith(".pdf")
+
+        internal fun isPlainTextFile(mimeType: String, fileName: String): Boolean =
+            mimeType.startsWith("text/") || fileName.lowercase().endsWith(".txt")
     }
 
     override suspend fun extractText(
@@ -335,26 +344,6 @@ class AndroidDocumentExtractor @Inject constructor(
                 "Não foi possível abrir o arquivo."
             )
 
-    private fun isZipFile(
-        mimeType: String,
-        fileName: String
-    ): Boolean =
-        mimeType.contains("zip") ||
-                fileName.endsWith(".zip")
-
-    private fun isPdfFile(
-        mimeType: String,
-        fileName: String
-    ): Boolean =
-        mimeType == "application/pdf" ||
-                fileName.endsWith(".pdf")
-
-    private fun isPlainTextFile(
-        mimeType: String,
-        fileName: String
-    ): Boolean =
-        mimeType.startsWith("text/") ||
-                fileName.endsWith(".txt")
 
     private class LimitedInputStream(
         input: InputStream,

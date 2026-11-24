@@ -25,6 +25,17 @@ Run unit tests:
 ./gradlew test
 ```
 
+Generate JaCoCo coverage reports for the `debug` unit tests:
+
+```bash
+./gradlew :app:jacocoTestReport
+```
+
+The task runs the debug unit tests and writes HTML and XML reports to:
+
+- `app/build/reports/jacoco/jacocoTestReport/html/index.html`
+- `app/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml`
+
 Build the debug application:
 
 ```bash

@@ -4,5 +4,5 @@ data class AnonymizeRequest(
     val rawText: String,
     val enabledTypes: Set<PiiType> = PiiType.entries.toSet(),
     val mode: MaskMode = MaskMode.IRREVERSIBLE,
-    val cleanWhatsAppNoise: Boolean = true
+    val noiseCleanupPlatforms: Set<ChatPlatform> = setOf(ChatPlatform.WHATSAPP)
 )

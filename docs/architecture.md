@@ -64,7 +64,9 @@ Main components:
 - `PiiDetector`
 - `TextMasker`
 - `SpanConsolidator`
-- `WhatsAppParser`
+- `ChatExportParser`
+- `ChatParseResult`
+- `ParticipantOccurrence`
 - `AnonymizeContentUseCase`
 - `PiiMatch`
 - `PiiType`
@@ -165,7 +167,7 @@ The general processing flow is:
         Text Preparation
               |
               v
-         WhatsApp Parser
+       Chat Export Parser
               |
               v
           PII Detection
@@ -187,7 +189,11 @@ The general processing flow is:
 
 The input content is prepared before detection.
 
-When the input matches a supported WhatsApp export, the parser identifies participants if cleanup or participant anonymization is enabled. With cleanup enabled, it removes supported automatic message artifacts and prepares normalized text. With cleanup disabled, it preserves the original text while still identifying participant names when participant anonymization is enabled. All occurrences of identified names in the prepared text, including message bodies, are provided as participant matches for masking.
+`ChatExportParser` defines the generic contract for recognizing and parsing conversation exports. Implementations are registered as a set; the use case selects the parser whose `canParse` recognizes the input. If none match, the text is processed as ordinary text. If multiple parsers match, processing fails explicitly rather than choosing an arbitrary implementation.
+
+Each parser declares its `ChatPlatform` and optional participant `PiiType`. `ChatParseResult` contains normalized text, the number of removed noise entries, and participant occurrences represented independently of any application's PII category. Noise cleanup is enabled per platform through `AnonymizeRequest.noiseCleanupPlatforms`; the existing screen toggle still controls only WhatsApp. The current implementation is `AndroidWhatsAppParser`; it applies WhatsApp-specific format and noise rules. A future Telegram parser can be registered independently and receive cleanup configuration for `ChatPlatform.TELEGRAM` without changing the use case. The `TELEGRAM` platform identifier alone does not mean Telegram exports are currently supported.
+
+For the currently supported WhatsApp export, the parser identifies participants if cleanup or participant anonymization is enabled. With cleanup enabled, it removes supported automatic message artifacts and prepares normalized text. With cleanup disabled, it preserves the original text while still identifying participant names when participant anonymization is enabled. All occurrences of identified names in the prepared text, including message bodies, are returned for masking.
 
 The prepared text becomes the input for subsequent detection stages.
 

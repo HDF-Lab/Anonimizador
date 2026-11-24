@@ -6,11 +6,12 @@ import br.com.hdf.anonimizador.domain.detector.PiiDetector
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.ChatParseResult
+import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import br.com.hdf.anonimizador.domain.model.PiiMatch
 import br.com.hdf.anonimizador.domain.model.PiiType
-import br.com.hdf.anonimizador.domain.model.WhatsAppParseResult
-import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
+import br.com.hdf.anonimizador.domain.parser.ChatExportParser
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -136,17 +137,20 @@ class AnonymizerViewModelTest {
             }
         }
 
-        val parser = object : WhatsAppParser {
+        val parser = object : ChatExportParser {
+            override val platform: ChatPlatform = ChatPlatform.WHATSAPP
+            override val participantPiiType: PiiType? = PiiType.PARTICIPANTE_WHATSAPP
+
             override fun canParse(rawText: String): Boolean = false
-            override suspend fun parseAndClean(
+            override suspend fun parse(
                 rawText: String,
                 cleanNoise: Boolean
-            ): WhatsAppParseResult =
-                WhatsAppParseResult(false, rawText, 0)
+            ): ChatParseResult =
+                ChatParseResult(false, rawText, 0)
         }
 
         val useCase = AnonymizeContentUseCase(
-            whatsAppParser = parser,
+            chatExportParsers = setOf(parser),
             detectors = setOf(detector),
             spanConsolidator = DefaultSpanConsolidator(),
             textMasker = SafeTextMasker()

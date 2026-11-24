@@ -123,14 +123,14 @@ br.com.hdf.anonimizador
 │   ├── detector/       # Detectores de PII
 │   ├── ingestion/      # Extração TXT, PDF e ZIP
 │   ├── masking/        # Mascaramento de texto
-│   └── parser/         # Parser de WhatsApp
+│   └── parser/         # Implementações de parser por formato (atualmente WhatsApp)
 ├── di/                 # Módulos Hilt e dispatchers
 ├── domain/
 │   ├── detector/       # Contratos de detecção
 │   ├── ingestion/      # Contratos de extração
 │   ├── masking/        # Contratos e consolidação
 │   ├── model/          # Modelos de domínio
-│   ├── parser/         # Contratos de parsing
+│   ├── parser/         # Contratos genéricos e modelos de parsing
 │   └── usecase/        # Casos de uso
 └── presentation/
     └── editor/         # ViewModel e interface Compose

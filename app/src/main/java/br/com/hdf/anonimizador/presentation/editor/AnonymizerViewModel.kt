@@ -7,6 +7,7 @@ import br.com.hdf.anonimizador.di.DefaultDispatcher
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
@@ -205,7 +206,7 @@ class AnonymizerViewModel @Inject constructor(
                 it.copy(
                     sanitizedText = "",
                     entityCounts = emptyMap(),
-                    removedSystemLinesCount = 0,
+                    removedNoiseCount = 0,
                     isProcessing = false,
                     errorMessage = null
                 )
@@ -229,7 +230,11 @@ class AnonymizerViewModel @Inject constructor(
                     rawText = snapshot.inputText,
                     enabledTypes = snapshot.enabledTypes,
                     mode = snapshot.maskingMode,
-                    cleanWhatsAppNoise = snapshot.cleanWhatsAppNoise
+                    noiseCleanupPlatforms = if (snapshot.cleanWhatsAppNoise) {
+                        setOf(ChatPlatform.WHATSAPP)
+                    } else {
+                        emptySet()
+                    }
                 )
 
                 val output = withContext(computationDispatcher) {
@@ -242,7 +247,7 @@ class AnonymizerViewModel @Inject constructor(
                     it.copy(
                         sanitizedText = output.sanitizedText,
                         entityCounts = output.entityCounts,
-                        removedSystemLinesCount = output.removedSystemLinesCount,
+                        removedNoiseCount = output.removedNoiseCount,
                         isProcessing = false,
                         errorMessage = null
                     )

@@ -25,14 +25,15 @@ The user enters or changes text, or changes an enabled PII type, masking mode, o
 
 1. The application receives the original text and current configuration.
 2. If the text is blank, the application returns an empty result.
-3. If the text matches the supported WhatsApp format, the application parses it when cleanup is enabled or participant anonymization is enabled.
-4. When cleanup is enabled, the application removes supported system noise and prepares normalized text. When cleanup is disabled, it preserves the original text.
-5. If participant anonymization is enabled, the parser identifies participant names in message headers and marks every occurrence of those names in the prepared text, including message bodies.
-6. The application detects information from the PII types enabled in the request.
-7. Detected matches and participant matches are combined.
-8. The application validates and consolidates overlaps using the longest valid interval policy.
-9. The application applies the selected masking mode.
-10. The application returns the anonymized text, entity counts, optional reversal vault, and removed WhatsApp system line count.
+3. The application selects the single registered chat export parser that recognizes the text. If none recognizes it, the text is treated as ordinary content; if multiple parsers recognize it, processing fails explicitly.
+4. If the selected parser's platform has noise cleanup enabled or its participant PII type is enabled, the application parses the content.
+5. When cleanup is enabled for the selected platform, the application removes supported noise and prepares normalized text. When cleanup is disabled, it preserves the original text.
+6. If the selected parser provides a participant PII type and that type is enabled, the parser identifies participant names and marks every occurrence in the prepared text.
+7. The application detects information from the PII types enabled in the request.
+8. Detected matches and participant matches are combined.
+9. The application validates and consolidates overlaps using the longest valid interval policy.
+10. The application applies the selected masking mode.
+11. The application returns the anonymized text, entity counts, optional reversal vault, and removed-noise count.
 
 ## 5. Alternative Flows
 
@@ -98,7 +99,7 @@ The use case propagates cancellation and does not publish a cancelled result.
 - The anonymized text is available to the presentation layer.
 - Entity counts reflect consolidated matches.
 - The original text remains unchanged.
-- WhatsApp system line removal is reported when applicable.
+- Chat-export noise removal is reported when applicable.
 
 ### Failure or Cancellation
 
@@ -125,7 +126,7 @@ The use case propagates cancellation and does not publish a cancelled result.
 ## 10. Related Components
 
 - `AnonymizeContentUseCase`
-- `WhatsAppParser`
+- `ChatExportParser`
 - `PiiDetector`
 - `SpanConsolidator`
 - `TextMasker`

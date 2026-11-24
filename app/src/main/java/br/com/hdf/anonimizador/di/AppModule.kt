@@ -9,7 +9,7 @@ import br.com.hdf.anonimizador.domain.detector.SpanConsolidator
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.masking.TextMasker
 import br.com.hdf.anonimizador.data.parser.AndroidWhatsAppParser
-import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
+import br.com.hdf.anonimizador.domain.parser.ChatExportParser
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.Binds
 import dagger.Module
@@ -56,8 +56,9 @@ object AppProvidesModule {
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
     @Provides
+    @IntoSet
     @Singleton
-    fun provideWhatsAppParser(): WhatsAppParser = AndroidWhatsAppParser()
+    fun provideWhatsAppParser(): ChatExportParser = AndroidWhatsAppParser()
 
     @Provides
     @Singleton
@@ -66,12 +67,12 @@ object AppProvidesModule {
     @Provides
     @Singleton
     fun provideAnonymizeContentUseCase(
-        whatsAppParser: WhatsAppParser,
+        chatExportParsers: Set<@JvmSuppressWildcards ChatExportParser>,
         detectors: Set<@JvmSuppressWildcards PiiDetector>,
         spanConsolidator: SpanConsolidator,
         textMasker: TextMasker
     ): AnonymizeContentUseCase = AnonymizeContentUseCase(
-        whatsAppParser = whatsAppParser,
+        chatExportParsers = chatExportParsers,
         detectors = detectors,
         spanConsolidator = spanConsolidator,
         textMasker = textMasker

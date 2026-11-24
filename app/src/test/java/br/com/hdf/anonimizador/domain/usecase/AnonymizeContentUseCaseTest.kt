@@ -4,11 +4,13 @@ import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
 import br.com.hdf.anonimizador.domain.detector.PiiDetector
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.ChatParseResult
+import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiMatch
+import br.com.hdf.anonimizador.domain.model.ParticipantOccurrence
 import br.com.hdf.anonimizador.domain.model.PiiType
-import br.com.hdf.anonimizador.domain.model.WhatsAppParseResult
-import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
+import br.com.hdf.anonimizador.domain.parser.ChatExportParser
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -17,11 +19,11 @@ import org.junit.Test
 
 class AnonymizeContentUseCaseTest {
 
-    private lateinit var parser: FakeWhatsAppParser
+    private lateinit var parser: FakeChatExportParser
 
     @Before
     fun setUp() {
-        parser = FakeWhatsAppParser()
+        parser = FakeChatExportParser()
     }
 
     @Test
@@ -40,6 +42,90 @@ class AnonymizeContentUseCaseTest {
         assertTrue(output.entityCounts.isEmpty())
         assertEquals(0, detector.detectCallCount)
         assertEquals(0, parser.parseCallCount)
+    }
+
+    @Test
+    fun `deve selecionar somente parser que reconhece o conteudo`() = runTest {
+        val nonMatchingParser = FakeChatExportParser(canParse = false)
+        val matchingParser = FakeChatExportParser(
+            canParse = true,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
+                normalizedText = "conteudo preparado",
+                removedNoiseCount = 0
+            )
+        )
+        val text = "exportacao reconhecida"
+
+        val output = createUseCase(
+            detector = RecordingDetector(),
+            parsers = setOf(nonMatchingParser, matchingParser)
+        )(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = emptySet()
+            )
+        )
+
+        assertEquals("conteudo preparado", output.sanitizedText)
+        assertEquals(0, nonMatchingParser.parseCallCount)
+        assertEquals(1, matchingParser.parseCallCount)
+    }
+
+    @Test
+    fun `deve aplicar limpeza conforme plataforma do parser selecionado`() = runTest {
+        val telegramParser = FakeChatExportParser(
+            canParse = true,
+            platform = ChatPlatform.TELEGRAM,
+            participantPiiType = null,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
+                normalizedText = "conteudo sem ruido",
+                removedNoiseCount = 1
+            )
+        )
+
+        val output = createUseCase(
+            detector = RecordingDetector(),
+            parsers = setOf(telegramParser)
+        )(
+            AnonymizeRequest(
+                rawText = "exportacao telegram",
+                enabledTypes = emptySet(),
+                noiseCleanupPlatforms = setOf(ChatPlatform.TELEGRAM)
+            )
+        )
+
+        assertEquals("conteudo sem ruido", output.sanitizedText)
+        assertEquals(1, output.removedNoiseCount)
+        assertEquals(true, telegramParser.lastCleanNoise)
+    }
+
+    @Test
+    fun `deve rejeitar parsers que reconhecem o mesmo conteudo`() = runTest {
+        val parsers = setOf(
+            FakeChatExportParser(canParse = true),
+            FakeChatExportParser(canParse = true)
+        )
+
+        try {
+            createUseCase(
+                detector = RecordingDetector(),
+                parsers = parsers
+            )(
+                AnonymizeRequest(
+                    rawText = "conteudo ambiguo",
+                    enabledTypes = emptySet(),
+                    noiseCleanupPlatforms = emptySet()
+                )
+            )
+            org.junit.Assert.fail("A selecao ambigua deveria falhar")
+        } catch (exception: IllegalStateException) {
+            assertEquals(
+                "Multiple chat export parsers recognized the same input.",
+                exception.message
+            )
+        }
     }
 
     @Test
@@ -97,19 +183,18 @@ class AnonymizeContentUseCaseTest {
 
     @Test
     fun `deve limpar WhatsApp e mascarar participantes quando habilitado`() = runTest {
-        val participantMatch = PiiMatch(
+        val participantOccurrence = ParticipantOccurrence(
             startIndex = 0,
             endIndex = 4,
-            originalValue = "João",
-            type = PiiType.PARTICIPANTE_WHATSAPP
+            originalValue = "João"
         )
-        parser = FakeWhatsAppParser(
+        parser = FakeChatExportParser(
             canParse = true,
-            parseResult = WhatsAppParseResult(
-                isWhatsAppFormat = true,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
                 normalizedText = "João disse: oi",
-                removedSystemLinesCount = 2,
-                participantMatches = listOf(participantMatch)
+                removedNoiseCount = 2,
+                participantOccurrences = listOf(participantOccurrence)
             )
         )
         val useCase = createUseCase(RecordingDetector())
@@ -118,40 +203,38 @@ class AnonymizeContentUseCaseTest {
             AnonymizeRequest(
                 rawText = "texto exportado do WhatsApp",
                 enabledTypes = setOf(PiiType.PARTICIPANTE_WHATSAPP),
-                cleanWhatsAppNoise = true
+                noiseCleanupPlatforms = setOf(ChatPlatform.WHATSAPP)
             )
         )
 
         assertEquals("[PARTICIPANTE_WHATSAPP_1] disse: oi", output.sanitizedText)
         assertEquals(mapOf(PiiType.PARTICIPANTE_WHATSAPP to 1), output.entityCounts)
-        assertEquals(2, output.removedSystemLinesCount)
+        assertEquals(2, output.removedNoiseCount)
         assertEquals(1, parser.parseCallCount)
     }
 
     @Test
     fun `deve mascarar participantes no texto original quando limpeza de ruido estiver desabilitada`() = runTest {
         val text = "01/01/2026 10:30 - João: João confirmou."
-        val participantMatches = listOf(
-            PiiMatch(
+        val participantOccurrences = listOf(
+            ParticipantOccurrence(
                 startIndex = text.indexOf("João"),
                 endIndex = text.indexOf("João") + "João".length,
-                originalValue = "João",
-                type = PiiType.PARTICIPANTE_WHATSAPP
+                originalValue = "João"
             ),
-            PiiMatch(
+            ParticipantOccurrence(
                 startIndex = text.lastIndexOf("João"),
                 endIndex = text.lastIndexOf("João") + "João".length,
-                originalValue = "João",
-                type = PiiType.PARTICIPANTE_WHATSAPP
+                originalValue = "João"
             )
         )
-        parser = FakeWhatsAppParser(
+        parser = FakeChatExportParser(
             canParse = true,
-            parseResult = WhatsAppParseResult(
-                isWhatsAppFormat = true,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
                 normalizedText = text,
-                removedSystemLinesCount = 0,
-                participantMatches = participantMatches
+                removedNoiseCount = 0,
+                participantOccurrences = participantOccurrences
             )
         )
 
@@ -159,7 +242,7 @@ class AnonymizeContentUseCaseTest {
             AnonymizeRequest(
                 rawText = text,
                 enabledTypes = setOf(PiiType.PARTICIPANTE_WHATSAPP),
-                cleanWhatsAppNoise = false
+                noiseCleanupPlatforms = emptySet()
             )
         )
 
@@ -167,26 +250,25 @@ class AnonymizeContentUseCaseTest {
             "01/01/2026 10:30 - [PARTICIPANTE_WHATSAPP_1]: [PARTICIPANTE_WHATSAPP_1] confirmou.",
             output.sanitizedText
         )
-        assertEquals(0, output.removedSystemLinesCount)
+        assertEquals(0, output.removedNoiseCount)
         assertEquals(1, parser.parseCallCount)
         assertEquals(false, parser.lastCleanNoise)
     }
 
     @Test
     fun `deve preservar texto quando WhatsApp nao estiver habilitado para participantes`() = runTest {
-        val participantMatch = PiiMatch(
+        val participantOccurrence = ParticipantOccurrence(
             startIndex = 0,
             endIndex = 4,
-            originalValue = "João",
-            type = PiiType.PARTICIPANTE_WHATSAPP
+            originalValue = "João"
         )
-        parser = FakeWhatsAppParser(
+        parser = FakeChatExportParser(
             canParse = true,
-            parseResult = WhatsAppParseResult(
-                isWhatsAppFormat = true,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
                 normalizedText = "João disse: oi",
-                removedSystemLinesCount = 1,
-                participantMatches = listOf(participantMatch)
+                removedNoiseCount = 1,
+                participantOccurrences = listOf(participantOccurrence)
             )
         )
         val useCase = createUseCase(RecordingDetector())
@@ -195,13 +277,13 @@ class AnonymizeContentUseCaseTest {
             AnonymizeRequest(
                 rawText = "texto exportado do WhatsApp",
                 enabledTypes = setOf(PiiType.CPF),
-                cleanWhatsAppNoise = true
+                noiseCleanupPlatforms = setOf(ChatPlatform.WHATSAPP)
             )
         )
 
         assertEquals("João disse: oi", output.sanitizedText)
         assertTrue(output.entityCounts.isEmpty())
-        assertEquals(1, output.removedSystemLinesCount)
+        assertEquals(1, output.removedNoiseCount)
     }
 
     @Test
@@ -326,12 +408,12 @@ class AnonymizeContentUseCaseTest {
 
     @Test
     fun `deve nao limpar WhatsApp quando configuracao estiver desabilitada`() = runTest {
-        parser = FakeWhatsAppParser(
+        parser = FakeChatExportParser(
             canParse = true,
-            parseResult = WhatsAppParseResult(
-                isWhatsAppFormat = true,
+            parseResult = ChatParseResult(
+                isSupportedFormat = true,
                 normalizedText = "texto limpo",
-                removedSystemLinesCount = 5
+                removedNoiseCount = 5
             )
         )
         val text = "01/01/2026 10:30 - Ana: oi"
@@ -340,12 +422,12 @@ class AnonymizeContentUseCaseTest {
             AnonymizeRequest(
                 rawText = text,
                 enabledTypes = setOf(PiiType.CPF),
-                cleanWhatsAppNoise = false
+                noiseCleanupPlatforms = emptySet()
             )
         )
 
         assertEquals(text, output.sanitizedText)
-        assertEquals(0, output.removedSystemLinesCount)
+        assertEquals(0, output.removedNoiseCount)
         assertEquals(0, parser.parseCallCount)
     }
 
@@ -366,9 +448,12 @@ class AnonymizeContentUseCaseTest {
         }
     }
 
-    private fun createUseCase(detector: PiiDetector): AnonymizeContentUseCase {
+    private fun createUseCase(
+        detector: PiiDetector,
+        parsers: Set<ChatExportParser> = setOf(parser)
+    ): AnonymizeContentUseCase {
         return AnonymizeContentUseCase(
-            whatsAppParser = parser,
+            chatExportParsers = parsers,
             detectors = setOf(detector),
             spanConsolidator = DefaultSpanConsolidator(),
             textMasker = SafeTextMasker()
@@ -407,14 +492,16 @@ class AnonymizeContentUseCaseTest {
         }
     }
 
-    private class FakeWhatsAppParser(
+    private class FakeChatExportParser(
         private val canParse: Boolean = false,
-        private val parseResult: WhatsAppParseResult = WhatsAppParseResult(
-            isWhatsAppFormat = true,
+        override val platform: ChatPlatform = ChatPlatform.WHATSAPP,
+        override val participantPiiType: PiiType? = PiiType.PARTICIPANTE_WHATSAPP,
+        private val parseResult: ChatParseResult = ChatParseResult(
+            isSupportedFormat = true,
             normalizedText = "",
-            removedSystemLinesCount = 0
+            removedNoiseCount = 0
         )
-    ) : WhatsAppParser {
+    ) : ChatExportParser {
 
         var parseCallCount: Int = 0
             private set
@@ -423,10 +510,10 @@ class AnonymizeContentUseCaseTest {
 
         override fun canParse(rawText: String): Boolean = canParse
 
-        override suspend fun parseAndClean(
+        override suspend fun parse(
             rawText: String,
             cleanNoise: Boolean
-        ): WhatsAppParseResult {
+        ): ChatParseResult {
             parseCallCount++
             lastCleanNoise = cleanNoise
             return parseResult

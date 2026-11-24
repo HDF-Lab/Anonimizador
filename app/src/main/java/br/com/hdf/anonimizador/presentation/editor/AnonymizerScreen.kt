@@ -356,8 +356,8 @@ fun AnonymizerContent(
                 OutputCard(
                     sanitizedText = uiState.sanitizedText,
                     totalEntities = totalEntities,
-                    removedSystemLinesCount =
-                        uiState.removedSystemLinesCount,
+                    removedNoiseCount =
+                        uiState.removedNoiseCount,
                     isLargeOutput = isLargeOutput
                 )
 
@@ -463,7 +463,7 @@ private fun AnonymizerScreenPreview() {
                         "[CPF_OCULTO] e o PIX é [EMAIL_OCULTO]",
 
                 cleanWhatsAppNoise = true,
-                removedSystemLinesCount = 2
+                removedNoiseCount = 2
             ),
 
             onEnabledTypesChanged = {},

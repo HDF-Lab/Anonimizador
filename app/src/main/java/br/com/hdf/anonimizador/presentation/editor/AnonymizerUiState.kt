@@ -10,7 +10,7 @@ data class AnonymizerUiState (
     val maskingMode: MaskMode = MaskMode.IRREVERSIBLE,
     val cleanWhatsAppNoise: Boolean = true,
     val entityCounts: Map<PiiType, Int> = emptyMap(),
-    val removedSystemLinesCount: Int = 0,
+    val removedNoiseCount: Int = 0,
     val isProcessing: Boolean = false,
     val errorMessage: String? = null
 ) {

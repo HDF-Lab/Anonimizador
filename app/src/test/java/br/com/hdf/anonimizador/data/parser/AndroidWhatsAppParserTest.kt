@@ -1,6 +1,5 @@
 package br.com.hdf.anonimizador.data.parser
 
-import br.com.hdf.anonimizador.domain.model.PiiType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -50,10 +49,10 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertTrue(result.isWhatsAppFormat)
+        assertTrue(result.isSupportedFormat)
 
         assertEquals(
             """
@@ -72,15 +71,15 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertEquals(1, result.removedSystemLinesCount)
+        assertEquals(1, result.removedNoiseCount)
         assertEquals("17/07/2026 10:49 - Ana: Olá!", result.normalizedText)
     }
 
     @Test
-    fun `deve gerar participantMatches para cada ocorrencia de participante`() {
+    fun `deve gerar ocorrencias para cada participante`() {
         val text = """
             01/01/2026 10:30 - Ana: Olá!
             01/01/2026 10:31 - João: Tudo bem?
@@ -88,20 +87,14 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertEquals(3, result.participantMatches.size)
+        assertEquals(3, result.participantOccurrences.size)
 
         assertEquals(
             listOf("Ana", "João", "Ana"),
-            result.participantMatches.map { it.originalValue }
-        )
-
-        assertTrue(
-            result.participantMatches.all {
-                it.type == PiiType.PARTICIPANTE_WHATSAPP
-            }
+            result.participantOccurrences.map { it.originalValue }
         )
     }
 
@@ -113,10 +106,10 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        result.participantMatches.forEach { match ->
+        result.participantOccurrences.forEach { match ->
             assertEquals(
                 match.originalValue,
                 result.normalizedText.substring(
@@ -135,16 +128,16 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text, cleanNoise = false)
+            parser.parse(text, cleanNoise = false)
         }
 
         assertEquals(text, result.normalizedText)
-        assertEquals(0, result.removedSystemLinesCount)
+        assertEquals(0, result.removedNoiseCount)
         assertEquals(
             listOf("João", "João", "Ana", "João"),
-            result.participantMatches.map { it.originalValue }
+            result.participantOccurrences.map { it.originalValue }
         )
-        result.participantMatches.forEach { match ->
+        result.participantOccurrences.forEach { match ->
             assertEquals(
                 match.originalValue,
                 result.normalizedText.substring(match.startIndex, match.endIndex)
@@ -162,7 +155,7 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
         assertTrue(
@@ -171,7 +164,7 @@ class AndroidWhatsAppParserTest {
             )
         )
 
-        assertEquals(2, result.participantMatches.size)
+        assertEquals(2, result.participantOccurrences.size)
     }
 
     @Test
@@ -181,12 +174,12 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
         assertEquals(
             "Maria Silva",
-            result.participantMatches.single().originalValue
+            result.participantOccurrences.single().originalValue
         )
     }
 
@@ -195,13 +188,13 @@ class AndroidWhatsAppParserTest {
         val text = "  Texto comum sem formato WhatsApp  "
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertFalse(result.isWhatsAppFormat)
+        assertFalse(result.isSupportedFormat)
         assertEquals("Texto comum sem formato WhatsApp", result.normalizedText)
-        assertTrue(result.participantMatches.isEmpty())
-        assertEquals(0, result.removedSystemLinesCount)
+        assertTrue(result.participantOccurrences.isEmpty())
+        assertEquals(0, result.removedNoiseCount)
     }
 
     @Test
@@ -213,10 +206,10 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertEquals(2, result.participantMatches.size)
+        assertEquals(2, result.participantOccurrences.size)
         assertTrue(result.normalizedText.contains("Ana: Olá!"))
         assertTrue(result.normalizedText.contains("João: Tudo bem?"))
     }
@@ -228,7 +221,7 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
         assertTrue(
@@ -244,13 +237,13 @@ class AndroidWhatsAppParserTest {
         """.trimIndent()
 
         val result = kotlinx.coroutines.runBlocking {
-            parser.parseAndClean(text)
+            parser.parse(text)
         }
 
-        assertEquals(2, result.participantMatches.size)
+        assertEquals(2, result.participantOccurrences.size)
         assertEquals(
             listOf("Ana", "Ana"),
-            result.participantMatches.map { it.originalValue }
+            result.participantOccurrences.map { it.originalValue }
         )
     }
 }

@@ -1,19 +1,24 @@
 
 package br.com.hdf.anonimizador.data.parser
 
-import br.com.hdf.anonimizador.domain.model.PiiMatch
+import br.com.hdf.anonimizador.domain.model.ChatParseResult
+import br.com.hdf.anonimizador.domain.model.ChatPlatform
+import br.com.hdf.anonimizador.domain.model.ParticipantOccurrence
 import br.com.hdf.anonimizador.domain.model.PiiType
-import br.com.hdf.anonimizador.domain.model.WhatsAppParseResult
 import br.com.hdf.anonimizador.domain.parser.DefaultWhatsAppNoisePolicy
 import br.com.hdf.anonimizador.domain.parser.RawChatEntry
 import br.com.hdf.anonimizador.domain.parser.NoisePolicy
-import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
+import br.com.hdf.anonimizador.domain.parser.ChatExportParser
 
 class AndroidWhatsAppParser internal constructor(
     private val noisePolicy: NoisePolicy
-) : WhatsAppParser {
+) : ChatExportParser {
 
     constructor() : this(DefaultWhatsAppNoisePolicy())
+
+    override val platform: ChatPlatform = ChatPlatform.WHATSAPP
+
+    override val participantPiiType: PiiType = PiiType.PARTICIPANTE_WHATSAPP
 
     companion object {
 
@@ -32,18 +37,18 @@ class AndroidWhatsAppParser internal constructor(
             .any(::isMessageHeader)
     }
 
-    override suspend fun parseAndClean(
+    override suspend fun parse(
         rawText: String,
         cleanNoise: Boolean
-    ): WhatsAppParseResult {
+    ): ChatParseResult {
 
         if (!canParse(rawText)) {
-            return WhatsAppParseResult(
-                isWhatsAppFormat = false,
+            return ChatParseResult(
+                isSupportedFormat = false,
                 normalizedText = noisePolicy
                     .sanitizeInvisibleChars(rawText)
                     .trim(),
-                removedSystemLinesCount = 0
+                removedNoiseCount = 0
             )
         }
 
@@ -90,11 +95,11 @@ class AndroidWhatsAppParser internal constructor(
 
         val outputText = if (cleanNoise) normalizedText.toString() else rawText
 
-        return WhatsAppParseResult(
-            isWhatsAppFormat = true,
+        return ChatParseResult(
+            isSupportedFormat = true,
             normalizedText = outputText,
-            removedSystemLinesCount = removedCount,
-            participantMatches = findParticipantMatches(outputText, participantNames)
+            removedNoiseCount = removedCount,
+            participantOccurrences = findParticipantOccurrences(outputText, participantNames)
         )
     }
 
@@ -167,10 +172,10 @@ class AndroidWhatsAppParser internal constructor(
         }
     }
 
-    private fun findParticipantMatches(
+    private fun findParticipantOccurrences(
         text: String,
         participantNames: Set<String>
-    ): List<PiiMatch> {
+    ): List<ParticipantOccurrence> {
         if (participantNames.isEmpty()) return emptyList()
 
         val namesPattern = participantNames
@@ -182,11 +187,10 @@ class AndroidWhatsAppParser internal constructor(
         )
 
         return pattern.findAll(text).map { match ->
-            PiiMatch(
+            ParticipantOccurrence(
                 startIndex = match.range.first,
                 endIndex = match.range.last + 1,
-                originalValue = match.value,
-                type = PiiType.PARTICIPANTE_WHATSAPP
+                originalValue = match.value
             )
         }.toList()
     }

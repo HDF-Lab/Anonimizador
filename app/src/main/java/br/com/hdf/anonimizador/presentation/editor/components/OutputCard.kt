@@ -20,7 +20,7 @@ private const val MAX_PREVIEW_CHARS = 15_000
 fun OutputCard(
     sanitizedText: String,
     totalEntities: Int,
-    removedSystemLinesCount: Int,
+    removedNoiseCount: Int,
     isLargeOutput: Boolean
 ) {
     val preview = if (isLargeOutput) {
@@ -47,9 +47,9 @@ fun OutputCard(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            if (removedSystemLinesCount > 0) {
+            if (removedNoiseCount > 0) {
                 Text(
-                    text = "$removedSystemLinesCount linhas de sistema removidas",
+                    text = "$removedNoiseCount itens automáticos removidos",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -74,4 +74,3 @@ fun OutputCard(
         }
     }
 }
-

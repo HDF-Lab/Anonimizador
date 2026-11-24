@@ -45,8 +45,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import br.com.hdf.anonimizador.domain.model.MaskMode
@@ -67,8 +69,6 @@ import kotlinx.coroutines.withContext
 
 private const val MAX_PREVIEW_CHARS = 15_000
 private const val MAX_CLIPBOARD_CHARS = 250_000
-
-private const val DEFAULT_FILE_NAME = "conversa_anonimizada.txt"
 
 /**
  * Tela principal do anonimizador.
@@ -140,9 +140,9 @@ fun AnonymizerScreen(
                 }
 
                 val message = if (saved) {
-                    "Arquivo TXT salvo com sucesso!"
+                    context.getString(R.string.save_txt_success)
                 } else {
-                    "Erro ao salvar o arquivo."
+                    context.getString(R.string.save_txt_error)
                 }
 
                 Toast.makeText(
@@ -178,7 +178,7 @@ fun AnonymizerScreen(
                 text.length > MAX_CLIPBOARD_CHARS -> {
                     Toast.makeText(
                         context,
-                        "Texto muito grande para copiar. Utilize a opção Salvar TXT.",
+                        context.getString(R.string.copy_text_too_large),
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -187,20 +187,20 @@ fun AnonymizerScreen(
                     runCatching {
                         clipboardManager.setPrimaryClip(
                             ClipData.newPlainText(
-                                "Texto anonimizado",
+                                context.getString(R.string.clipboard_anonymized_text_label),
                                 text
                             )
                         )
                     }.onSuccess {
                         Toast.makeText(
                             context,
-                            "Resultado copiado!",
+                            context.getString(R.string.copy_result_success),
                             Toast.LENGTH_SHORT
                         ).show()
                     }.onFailure {
                         Toast.makeText(
                             context,
-                            "Falha ao copiar. Utilize a opção Salvar TXT.",
+                            context.getString(R.string.copy_result_error),
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -210,7 +210,7 @@ fun AnonymizerScreen(
 
         onSaveTxtClick = {
             if (uiState.sanitizedText.isNotBlank()) {
-                saveTxtLauncher.launch(DEFAULT_FILE_NAME)
+                saveTxtLauncher.launch(context.getString(R.string.default_export_file_name))
             }
         },
 
@@ -298,12 +298,12 @@ fun AnonymizerContent(
                 title = {
                     Column {
                         Text(
-                            text = "Anonimizador",
+                            text = stringResource(R.string.screen_title),
                             style = MaterialTheme.typography.titleMedium
                         )
 
                         Text(
-                            text = "Proteja seus dados pessoais",
+                            text = stringResource(R.string.screen_subtitle),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -320,7 +320,9 @@ fun AnonymizerContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DeleteOutline,
-                                contentDescription = "Limpar documento"
+                                contentDescription = stringResource(
+                                    R.string.clear_document_content_description
+                                )
                             )
                         }
                     }
@@ -331,7 +333,9 @@ fun AnonymizerContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
-                            contentDescription = "Configurações"
+                            contentDescription = stringResource(
+                                R.string.settings_content_description
+                            )
                         )
                     }
 
@@ -354,7 +358,7 @@ fun AnonymizerContent(
                     positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
                     tooltip = {
                         PlainTooltip {
-                            Text("Ocultar trecho selecionado")
+                            Text(stringResource(R.string.hide_selected_text))
                         }
                     },
                     state = rememberTooltipState()
@@ -372,7 +376,7 @@ fun AnonymizerContent(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.FindReplace,
-                            contentDescription = "Ocultar trecho selecionado"
+                            contentDescription = stringResource(R.string.hide_selected_text)
                         )
                     }
                 }
@@ -486,14 +490,11 @@ fun AnonymizerContent(
             },
 
             title = {
-                Text("Limpar documento?")
+                Text(stringResource(R.string.clear_document_dialog_title))
             },
 
             text = {
-                Text(
-                    "O texto original e o resultado " +
-                            "anonimizado serão removidos da tela."
-                )
+                Text(stringResource(R.string.clear_document_dialog_message))
             },
 
             confirmButton = {
@@ -503,7 +504,7 @@ fun AnonymizerContent(
                         onClearClick()
                     }
                 ) {
-                    Text("Limpar")
+                    Text(stringResource(R.string.clear_button))
                 }
             },
 
@@ -513,7 +514,7 @@ fun AnonymizerContent(
                         showClearDialog = false
                     }
                 ) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
         )

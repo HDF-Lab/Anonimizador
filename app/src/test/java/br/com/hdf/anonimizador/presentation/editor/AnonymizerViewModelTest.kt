@@ -15,6 +15,7 @@ import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.domain.parser.ChatExportParser
 import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
+import br.com.hdf.anonimizador.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineDispatcher
@@ -308,7 +309,7 @@ class AnonymizerViewModelTest {
 
         assertFalse(viewModel.uiState.value.isProcessing)
         assertEquals(
-            "Formato de arquivo não suportado. Use TXT, PDF ou ZIP.",
+            R.string.error_unsupported_file_format,
             viewModel.uiState.value.errorMessage
         )
     }

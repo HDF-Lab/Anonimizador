@@ -100,11 +100,11 @@ fun SettingsBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Configurações",
+                    text = stringResource(R.string.settings_title),
                     style = MaterialTheme.typography.headlineSmall
                 )
                 Text(
-                    text = "Personalize o que será protegido.",
+                    text = stringResource(R.string.settings_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -120,7 +120,7 @@ fun SettingsBottomSheet(
                     )
                 ) {
                     Text(
-                        text = "Atualizando resultado…",
+                        text = stringResource(R.string.settings_updating_result),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
@@ -159,11 +159,21 @@ fun SettingsBottomSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Tipos de dados · ${pendingEnabledTypes.size}/${allTypes.size}",
+                                text = stringResource(
+                                    R.string.settings_data_types_count,
+                                    pendingEnabledTypes.size,
+                                    allTypes.size
+                                ),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = if (dataSectionExpanded) "−" else "+",
+                                text = stringResource(
+                                    if (dataSectionExpanded) {
+                                        R.string.collapse_section
+                                    } else {
+                                        R.string.expand_section
+                                    }
+                                ),
                                 style = MaterialTheme.typography.titleLarge
                             )
                         }
@@ -182,18 +192,22 @@ fun SettingsBottomSheet(
                                 AssistChip(
                                     onClick = { pendingEnabledTypes = allTypes },
                                     enabled = !allSelected,
-                                    label = { Text("Selecionar todos") }
+                                    label = {
+                                        Text(stringResource(R.string.select_all_button))
+                                    }
                                 )
                                 AssistChip(
                                     onClick = { pendingEnabledTypes = emptySet() },
                                     enabled = !noneSelected,
-                                    label = { Text("Desmarcar") }
+                                    label = {
+                                        Text(stringResource(R.string.deselect_all_button))
+                                    }
                                 )
                             }
 
                             PiiType.entries.forEach { type ->
                                 val isChecked = type in pendingEnabledTypes
-                                val label = type.toDisplayLabel()
+                                val label = stringResource(type.toDisplayLabel())
 
                                 Card(
                                     modifier = Modifier
@@ -268,11 +282,20 @@ fun SettingsBottomSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Modo de anonimização · ${pendingMaskingMode.toDisplayLabel()}",
+                                    text = stringResource(
+                                        R.string.settings_masking_mode,
+                                        stringResource(pendingMaskingMode.toDisplayLabel())
+                                    ),
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = if (maskingSectionExpanded) "−" else "+",
+                                    text = stringResource(
+                                        if (maskingSectionExpanded) {
+                                            R.string.collapse_section
+                                        } else {
+                                            R.string.expand_section
+                                        }
+                                    ),
                                     style = MaterialTheme.typography.titleLarge
                                 )
                             }
@@ -312,7 +335,7 @@ fun SettingsBottomSheet(
                                                     onClick = null
                                                 )
                                                 Text(
-                                                    text = mode.toDisplayLabel(),
+                                                    text = stringResource(mode.toDisplayLabel()),
                                                     modifier = Modifier.padding(start = 8.dp),
                                                     style = MaterialTheme.typography.bodyLarge,
                                                     color = if (isSelected) {
@@ -417,7 +440,7 @@ fun SettingsBottomSheet(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Limpar ruídos do WhatsApp",
+                                        text = stringResource(R.string.clean_whatsapp_noise_title),
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Text(

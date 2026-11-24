@@ -18,7 +18,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 
 
 @Composable
@@ -46,7 +48,7 @@ fun ResultActionsBar(
             ) {
                 Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Salvar TXT")
+                Text(stringResource(R.string.save_txt_button))
             }
 
             Button(
@@ -56,7 +58,7 @@ fun ResultActionsBar(
             ) {
                 Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.size(8.dp))
-                Text("Copiar resultado")
+                Text(stringResource(R.string.copy_result_button))
             }
         }
     }

@@ -11,7 +11,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 
 @Composable
 fun ProcessingCard() {
@@ -27,7 +29,7 @@ fun ProcessingCard() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Processando conteúdo",
+                text = stringResource(R.string.processing_content),
                 style = MaterialTheme.typography.titleSmall
             )
 
@@ -36,7 +38,7 @@ fun ProcessingCard() {
             )
 
             Text(
-                text = "Aguarde enquanto o resultado é atualizado.",
+                text = stringResource(R.string.processing_wait_message),
                 style = MaterialTheme.typography.bodySmall
             )
         }

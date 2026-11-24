@@ -11,7 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 
 @Composable
 fun EmptyResultCard() {
@@ -27,12 +29,12 @@ fun EmptyResultCard() {
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = "Resultado",
+                text = stringResource(R.string.empty_result_title),
                 style = MaterialTheme.typography.titleMedium
             )
 
             Text(
-                text = "O resultado anonimizado aparecerá aqui.",
+                text = stringResource(R.string.empty_result_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

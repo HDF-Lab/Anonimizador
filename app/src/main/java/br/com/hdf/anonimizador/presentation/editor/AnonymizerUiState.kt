@@ -1,5 +1,6 @@
 package br.com.hdf.anonimizador.presentation.editor
 
+import androidx.annotation.StringRes
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
 
@@ -17,7 +18,7 @@ data class AnonymizerUiState (
     val removedNoiseCount: Int = 0,
     val manuallyRemovedCount: Int = 0,
     val isProcessing: Boolean = false,
-    val errorMessage: String? = null,
+    @StringRes val errorMessage: Int? = null,
     val canUndoManualReplacement: Boolean = false,
     val canRedoManualReplacement: Boolean = false
 ) {

@@ -21,7 +21,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 
 @Composable
 fun InputDocumentCard(
@@ -53,7 +56,7 @@ fun InputDocumentCard(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Documento",
+                    text = stringResource(R.string.input_document_title),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -63,23 +66,26 @@ fun InputDocumentCard(
                 enabled = !isProcessing,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Abrir arquivo TXT, PDF ou ZIP")
+                Text(stringResource(R.string.open_supported_file))
             }
 
             if (isLargeInput) {
                 Text(
-                    text = "Documento carregado",
+                    text = stringResource(R.string.input_document_loaded),
                     style = MaterialTheme.typography.titleSmall
                 )
 
                 Text(
-                    text = "${inputText.length} caracteres",
+                    text = pluralStringResource(
+                        R.plurals.character_count,
+                        inputText.length,
+                        inputText.length
+                    ),
                     style = MaterialTheme.typography.bodySmall
                 )
 
                 Text(
-                    text = "A edição manual foi desativada " +
-                            "para manter a fluidez.",
+                    text = stringResource(R.string.large_input_editing_disabled),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -98,15 +104,19 @@ fun InputDocumentCard(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     ),
                     label = {
-                        Text("Texto original")
+                        Text(stringResource(R.string.input_text_label))
                     },
                     placeholder = {
-                        Text(
-                            "Cole aqui o texto que deseja anonimizar..."
-                        )
+                        Text(stringResource(R.string.input_text_placeholder))
                     },
                     supportingText = {
-                        Text("${inputText.length} caracteres")
+                        Text(
+                            pluralStringResource(
+                                R.plurals.character_count,
+                                inputText.length,
+                                inputText.length
+                            )
+                        )
                     }
                 )
             }
@@ -122,7 +132,7 @@ fun InputDocumentCard(
                     modifier = Modifier
                 )
                 Text(
-                    text = "Processamento local e offline",
+                    text = stringResource(R.string.local_offline_processing),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -130,7 +140,6 @@ fun InputDocumentCard(
         }
     }
 }
-
 
 
 

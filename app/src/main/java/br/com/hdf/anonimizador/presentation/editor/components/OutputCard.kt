@@ -111,7 +111,7 @@ fun OutputCard(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = "Resultado anonimizado",
+                        text = stringResource(R.string.anonymized_result_title),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
@@ -135,20 +135,24 @@ fun OutputCard(
                     enabled = canUndo && !isProcessing,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Desfazer")
+                    Text(stringResource(R.string.undo_button))
                 }
                 OutlinedButton(
                     onClick = onRedo,
                     enabled = canRedo && !isProcessing,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Refazer")
+                    Text(stringResource(R.string.redo_button))
                 }
             }
 
             if (removedNoiseCount > 0) {
                 Text(
-                    text = "$removedNoiseCount itens automáticos removidos",
+                    text = pluralStringResource(
+                        R.plurals.removed_whatsapp_noise_count,
+                        removedNoiseCount,
+                        removedNoiseCount
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -179,7 +183,7 @@ fun OutputCard(
 
             if (isLargeOutput) {
                 Text(
-                    text = "Localizar e substituir atua no resultado completo.",
+                    text = stringResource(R.string.large_result_search_scope),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -189,7 +193,7 @@ fun OutputCard(
                     onValueChange = { searchText = it },
                     enabled = !isProcessing,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Localizar no resultado") },
+                    label = { Text(stringResource(R.string.search_result_label)) },
                     singleLine = true
                 )
                 Row(
@@ -205,7 +209,7 @@ fun OutputCard(
                                 searchText != redactionMarker,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Ocultar primeira")
+                        Text(stringResource(R.string.hide_first_button))
                     }
                     Button(
                         onClick = {
@@ -216,12 +220,12 @@ fun OutputCard(
                                 searchText != redactionMarker,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Ocultar todas")
+                        Text(stringResource(R.string.hide_all_button))
                     }
                 }
             } else {
                 Text(
-                    text = "Selecione no resultado abaixo o trecho que deseja ocultar.",
+                    text = stringResource(R.string.select_result_text_to_hide),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -274,7 +278,10 @@ fun OutputCard(
 
             if (isLargeOutput) {
                 Text(
-                    text = "Prévia limitada a 15.000 caracteres.",
+                    text = stringResource(
+                        R.string.large_result_preview_limit,
+                        MAX_PREVIEW_CHARS
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

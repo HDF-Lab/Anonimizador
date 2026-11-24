@@ -3,6 +3,7 @@ package br.com.hdf.anonimizador.presentation.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.hdf.anonimizador.R
 import br.com.hdf.anonimizador.di.DefaultDispatcher
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
@@ -123,7 +124,7 @@ class AnonymizerViewModel @Inject constructor(
                 replacement = replacement,
                 occurrenceIndex = occurrenceIndex
             ),
-            notFoundMessage = "O trecho selecionado não foi encontrado no resultado."
+            notFoundMessage = R.string.error_manual_selection_not_found
         )
     }
 
@@ -138,7 +139,7 @@ class AnonymizerViewModel @Inject constructor(
                 target = target,
                 replacement = replacement
             ),
-            notFoundMessage = "O texto informado não foi encontrado no resultado."
+            notFoundMessage = R.string.error_manual_search_not_found
         )
     }
 
@@ -154,7 +155,7 @@ class AnonymizerViewModel @Inject constructor(
                 replacement = replacement,
                 occurrenceIndex = 0
             ),
-            notFoundMessage = "O texto informado não foi encontrado no resultado."
+            notFoundMessage = R.string.error_manual_search_not_found
         )
     }
 
@@ -175,7 +176,7 @@ class AnonymizerViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isProcessing = false,
-                            errorMessage = "Não foi possível desfazer a última substituição."
+                            errorMessage = R.string.error_manual_undo
                         )
                     }
                     return@launch
@@ -198,7 +199,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível desfazer a última substituição."
+                        errorMessage = R.string.error_manual_undo
                     )
                 }
             }
@@ -223,7 +224,7 @@ class AnonymizerViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isProcessing = false,
-                            errorMessage = "O trecho da substituição não está mais disponível para refazer."
+                            errorMessage = R.string.error_manual_redo_target_missing
                         )
                     }
                     return@launch
@@ -246,7 +247,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível refazer a substituição."
+                        errorMessage = R.string.error_manual_redo
                     )
                 }
             }
@@ -377,7 +378,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível ler o arquivo selecionado. Tente novamente."
+                        errorMessage = R.string.error_read_selected_file
                     )
                 }
             }
@@ -493,7 +494,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível validar o conteúdo detectado. Revise o texto e tente novamente."
+                        errorMessage = R.string.error_validate_detected_content
                     )
                 }
 
@@ -503,7 +504,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível concluir a anonimização. Tente novamente."
+                        errorMessage = R.string.error_anonymization_failed
                     )
                 }
             }
@@ -512,33 +513,33 @@ class AnonymizerViewModel @Inject constructor(
 
     private fun mapExtractionError(
         exception: DocumentExtractionException
-    ): String = when (exception) {
+    ): Int = when (exception) {
         is DocumentExtractionException.UnsupportedFormat ->
-            "Formato de arquivo não suportado. Use TXT, PDF ou ZIP."
+            R.string.error_unsupported_file_format
 
         is DocumentExtractionException.FileAccessFailure ->
-            "Não foi possível abrir o arquivo selecionado."
+            R.string.error_open_selected_file
 
         is DocumentExtractionException.InvalidFileSize ->
-            "O tamanho do arquivo não pôde ser confirmado. Selecione-o novamente."
+            R.string.error_confirm_file_size
 
         is DocumentExtractionException.FileTooLarge ->
-            "O arquivo excede o limite de 20 MB."
+            R.string.error_file_too_large
 
         is DocumentExtractionException.ExtractedTextTooLarge ->
-            "O texto extraído excede o limite de 10 MB."
+            R.string.error_extracted_text_too_large
 
         is DocumentExtractionException.PdfTextTooLarge ->
-            "O PDF produziu texto além do limite de 10 MB."
+            R.string.error_pdf_text_too_large
 
         is DocumentExtractionException.ZipEntriesLimitExceeded ->
-            "O ZIP contém mais entradas do que o limite suportado."
+            R.string.error_zip_too_many_entries
 
         is DocumentExtractionException.ZipContentTooLarge ->
-            "O conteúdo descompactado do ZIP excede o limite permitido."
+            R.string.error_zip_content_too_large
 
         is DocumentExtractionException.ZipTextFileNotFound ->
-            "Nenhum arquivo TXT foi encontrado dentro do ZIP."
+            R.string.error_zip_txt_not_found
     }
 
     // -------------------------------------------------
@@ -571,7 +572,7 @@ class AnonymizerViewModel @Inject constructor(
 
     private fun applyManualReplacement(
         command: ManualTextReplacementCommand,
-        notFoundMessage: String
+        notFoundMessage: Int
     ) {
         if (_uiState.value.isProcessing) return
 
@@ -609,7 +610,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível aplicar a substituição. Tente novamente."
+                        errorMessage = R.string.error_manual_replacement_failed
                     )
                 }
             }

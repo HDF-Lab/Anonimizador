@@ -22,6 +22,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import br.com.hdf.anonimizador.R
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
+import br.com.hdf.anonimizador.presentation.editor.MAX_MANUAL_REDACTION_MARKER_LENGTH
 import br.com.hdf.anonimizador.presentation.editor.utils.toDisplayLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,8 +50,9 @@ fun SettingsBottomSheet(
     enabledTypes: Set<PiiType>,
     maskingMode: MaskMode,
     cleanWhatsAppNoise: Boolean,
+    manualRedactionMarker: String,
     isProcessing: Boolean,
-    onSettingsApplied: (Set<PiiType>, MaskMode, Boolean) -> Unit,
+    onSettingsApplied: (Set<PiiType>, MaskMode, Boolean, String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(
@@ -62,6 +65,9 @@ fun SettingsBottomSheet(
     var pendingCleanWhatsAppNoise by remember(cleanWhatsAppNoise) {
         mutableStateOf(cleanWhatsAppNoise)
     }
+    var pendingManualRedactionMarker by remember(manualRedactionMarker) {
+        mutableStateOf(manualRedactionMarker)
+    }
     var dataSectionExpanded by remember { mutableStateOf(true) }
     var maskingSectionExpanded by remember { mutableStateOf(false) }
     var whatsappSectionExpanded by remember { mutableStateOf(false) }
@@ -73,7 +79,8 @@ fun SettingsBottomSheet(
         onSettingsApplied(
             pendingEnabledTypes,
             pendingMaskingMode,
-            pendingCleanWhatsAppNoise
+            pendingCleanWhatsAppNoise,
+            pendingManualRedactionMarker
         )
         onDismiss()
     }
@@ -336,6 +343,52 @@ fun SettingsBottomSheet(
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.manual_redaction_settings_title),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = stringResource(R.string.manual_redaction_settings_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                OutlinedTextField(
+                                    value = pendingManualRedactionMarker,
+                                    onValueChange = {
+                                        pendingManualRedactionMarker =
+                                            it.take(MAX_MANUAL_REDACTION_MARKER_LENGTH)
+                                    },
+                                    enabled = !isProcessing,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    label = {
+                                        Text(stringResource(R.string.manual_redaction_marker_label))
+                                    },
+                                    supportingText = {
+                                        Text(
+                                            stringResource(
+                                                R.string.manual_redaction_marker_supporting_text,
+                                                pendingManualRedactionMarker.length,
+                                                MAX_MANUAL_REDACTION_MARKER_LENGTH
+                                            )
+                                        )
+                                    },
+                                    singleLine = true,
+                                    isError = pendingManualRedactionMarker.isBlank()
+                                )
                             }
                         }
 

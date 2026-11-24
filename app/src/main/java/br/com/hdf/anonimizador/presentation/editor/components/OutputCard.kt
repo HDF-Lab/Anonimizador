@@ -45,7 +45,7 @@ fun OutputCard(
     isProcessing: Boolean,
     canUndo: Boolean,
     canRedo: Boolean,
-    onSelectedReplacementChanged: (String, String, Int) -> Unit,
+    onSelectedReplacementChanged: (String, Int) -> Unit,
     onReplaceFirst: (String, String) -> Unit,
     onReplaceAll: (String, String) -> Unit,
     onUndo: () -> Unit,
@@ -81,7 +81,7 @@ fun OutputCard(
             target = selectedText,
             endIndex = selection.min
         )
-        onSelectedReplacementChanged(selectedText, redactionMarker, occurrenceIndex)
+        onSelectedReplacementChanged(selectedText, occurrenceIndex)
     }
 
     Card(

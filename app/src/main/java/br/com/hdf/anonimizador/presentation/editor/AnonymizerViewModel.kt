@@ -290,13 +290,20 @@ class AnonymizerViewModel @Inject constructor(
     fun onSettingsApplied(
         enabledTypes: Set<PiiType>,
         maskingMode: MaskMode,
-        cleanWhatsAppNoise: Boolean
+        cleanWhatsAppNoise: Boolean,
+        manualRedactionMarker: String
     ) {
         val current = _uiState.value
+        val normalizedMarker = manualRedactionMarker.trim()
+            .take(MAX_MANUAL_REDACTION_MARKER_LENGTH)
+            .ifEmpty { current.manualRedactionMarker }
+        val anonymizationSettingsChanged =
+            current.enabledTypes != enabledTypes ||
+                    current.maskingMode != maskingMode ||
+                    current.cleanWhatsAppNoise != cleanWhatsAppNoise
         if (
-            current.enabledTypes == enabledTypes &&
-            current.maskingMode == maskingMode &&
-            current.cleanWhatsAppNoise == cleanWhatsAppNoise
+            !anonymizationSettingsChanged &&
+            current.manualRedactionMarker == normalizedMarker
         ) {
             return
         }
@@ -305,11 +312,14 @@ class AnonymizerViewModel @Inject constructor(
             it.copy(
                 enabledTypes = enabledTypes.toSet(),
                 maskingMode = maskingMode,
-                cleanWhatsAppNoise = cleanWhatsAppNoise
+                cleanWhatsAppNoise = cleanWhatsAppNoise,
+                manualRedactionMarker = normalizedMarker
             )
         }
 
-        scheduleAnonymization(debounceMs = 0L)
+        if (anonymizationSettingsChanged) {
+            scheduleAnonymization(debounceMs = 0L)
+        }
     }
 
     // -------------------------------------------------

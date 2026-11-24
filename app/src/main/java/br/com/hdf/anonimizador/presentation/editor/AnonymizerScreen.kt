@@ -45,14 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
-import br.com.hdf.anonimizador.R
 import br.com.hdf.anonimizador.presentation.editor.components.EmptyResultCard
 import br.com.hdf.anonimizador.presentation.editor.components.ErrorCard
 import br.com.hdf.anonimizador.presentation.editor.components.InputDocumentCard
@@ -246,7 +244,7 @@ fun AnonymizerContent(
     onMaskingModeChanged: (MaskMode) -> Unit,
     onToggleWhatsAppNoise: (Boolean) -> Unit,
     onEnabledTypesChanged: (Set<PiiType>) -> Unit,
-    onSettingsApplied: (Set<PiiType>, MaskMode, Boolean) -> Unit = { _, _, _ -> },
+    onSettingsApplied: (Set<PiiType>, MaskMode, Boolean, String) -> Unit = { _, _, _, _ -> },
     onReplaceSelectedResult: (String, String, Int) -> Unit = { _, _, _ -> },
     onReplaceFirstResult: (String, String) -> Unit = { _, _ -> },
     onReplaceAllResult: (String, String) -> Unit = { _, _ -> },
@@ -278,7 +276,7 @@ fun AnonymizerContent(
 
     val isLargeOutput =
         uiState.sanitizedText.length > MAX_PREVIEW_CHARS
-    val redactionMarker = stringResource(R.string.manual_redaction_marker)
+    val redactionMarker = uiState.manualRedactionMarker
 
     var pendingSelectedReplacement by remember(uiState.sanitizedText) {
         mutableStateOf<SelectedTextReplacement?>(null)
@@ -365,7 +363,7 @@ fun AnonymizerContent(
                         onClick = {
                             onReplaceSelectedResult(
                                 selectedReplacement.target,
-                                selectedReplacement.replacement,
+                                redactionMarker,
                                 selectedReplacement.occurrenceIndex
                             )
                         },
@@ -439,10 +437,9 @@ fun AnonymizerContent(
                     isProcessing = uiState.isProcessing,
                     canUndo = uiState.canUndoManualReplacement,
                     canRedo = uiState.canRedoManualReplacement,
-                    onSelectedReplacementChanged = { target, replacement, occurrenceIndex ->
+                    onSelectedReplacementChanged = { target, occurrenceIndex ->
                         pendingSelectedReplacement = SelectedTextReplacement(
                             target = target,
-                            replacement = replacement,
                             occurrenceIndex = occurrenceIndex
                         )
                     },
@@ -470,6 +467,7 @@ fun AnonymizerContent(
             enabledTypes = uiState.enabledTypes,
             maskingMode = uiState.maskingMode,
             cleanWhatsAppNoise = uiState.cleanWhatsAppNoise,
+            manualRedactionMarker = uiState.manualRedactionMarker,
             isProcessing = uiState.isProcessing,
 
             onSettingsApplied = onSettingsApplied,
@@ -525,7 +523,6 @@ fun AnonymizerContent(
 
 private data class SelectedTextReplacement(
     val target: String,
-    val replacement: String,
     val occurrenceIndex: Int
 )
 

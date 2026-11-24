@@ -9,7 +9,7 @@
 | Primary Actor | User |
 | Goal | Redact selected or located text in the anonymized result |
 | Priority | Medium |
-| Related Component | `ApplyManualTextReplacementsUseCase` using the Command pattern |
+| Related Component | `ApplyManualTextReplacementsUseCase` using the Command pattern; marker configured by [UC-003](./UC003-Configure_Manual_Redaction_Marker.md) |
 
 ## 2. Preconditions
 
@@ -18,12 +18,12 @@
 
 ## 3. Trigger
 
-The user selects a passage in a short result or searches for text in a long result and requests redaction.
+The user selects a passage in a short result or searches for text in a long result and requests redaction. The marker is configured through UC-003.
 
 ## 4. Main Success Scenario
 
 1. For a short result, the user selects a passage and uses the floating redaction action. For a long result, the user locates text and chooses to redact its first occurrence or all occurrences.
-2. The presentation layer creates a replacement command using the fixed `[REMOVIDO]` marker and the selected occurrence scope.
+2. The presentation layer creates a replacement command using the configured redaction marker and the selected occurrence scope.
 3. The ViewModel invokes `ApplyManualTextReplacementsUseCase` on the computation dispatcher.
 4. The use case executes each command and returns the updated text with applied command records.
 5. Each applied command record stores the changed spans and provides an inverse operation for undo.
@@ -35,11 +35,11 @@ The user selects a passage in a short result or searches for text in a long resu
 
 ### A1 — Short Result
 
-For results of up to 15,000 characters, the user selects a range and redacts that occurrence using the fixed `[REMOVIDO]` marker.
+For results of up to 15,000 characters, the user selects a range and redacts that occurrence using the configured marker.
 
 ### A2 — Long Result
 
-For results longer than 15,000 characters, the UI shows a limited preview and provides a search field. The user can redact the first matching occurrence or all matching occurrences in the full result using `[REMOVIDO]`.
+For results longer than 15,000 characters, the UI shows a limited preview and provides a search field. The user can redact the first matching occurrence or all matching occurrences in the full result using the configured marker.
 
 ### A3 — Target Not Found
 
@@ -82,9 +82,9 @@ The ViewModel propagates coroutine cancellation and does not publish an obsolete
 | ID | Rule |
 |---|---|
 | BR-001 | An empty target is invalid; users cannot provide a custom replacement value. |
-| BR-002 | A selected occurrence is replaced with `[REMOVIDO]`. |
-| BR-003 | First-occurrence scope redacts only the first matching occurrence with `[REMOVIDO]`. |
-| BR-004 | All-occurrences scope redacts every non-overlapping match with `[REMOVIDO]`. |
+| BR-002 | A selected occurrence is replaced with the configured manual redaction marker. |
+| BR-003 | First-occurrence scope redacts only the first matching occurrence with the configured marker. |
+| BR-004 | All-occurrences scope redacts every non-overlapping match with the configured marker. |
 | BR-005 | The Command pattern represents each manual replacement as an executable command with a reversible execution record. |
 | BR-006 | Undo reverses the most recently applied command; redo executes the most recently undone command. |
 | BR-007 | A new replacement clears the redo stack. |
@@ -109,8 +109,8 @@ The ViewModel propagates coroutine cancellation and does not publish an obsolete
 
 ## 9. Acceptance Criteria
 
-- [ ] Redacts a selected occurrence in a result up to 15,000 characters with `[REMOVIDO]`.
-- [ ] Redacts the first or all located matches in the complete long result with `[REMOVIDO]`.
+- [ ] Redacts a selected occurrence in a result up to 15,000 characters with the configured marker.
+- [ ] Redacts the first or all located matches in the complete long result with the configured marker.
 - [ ] Undoes and redoes replacement commands in last-in-first-out order.
 - [ ] Clears redo history after a new command is executed.
 - [ ] Preserves commands whose targets still match after configuration reprocessing and drops unmatched commands.

@@ -11,3 +11,4 @@
 ### User Cases
 - [Anonymize Content Use Case](usercases/UC001-Anonymize_Content.md)
 - [Manual Text Redaction](usercases/UC002-Manual_Text_Redaction.md)
+- [Configure Manual Redaction Marker](usercases/UC003-Configure_Manual_Redaction_Marker.md)

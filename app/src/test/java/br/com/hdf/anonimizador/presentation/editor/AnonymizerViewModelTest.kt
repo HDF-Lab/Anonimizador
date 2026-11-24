@@ -75,6 +75,7 @@ class AnonymizerViewModelTest {
         assertEquals("", state.sanitizedText)
         assertTrue(state.entityCounts.isEmpty())
         assertFalse(state.isProcessing)
+        assertEquals("[REMOVIDO]", state.manualRedactionMarker)
     }
 
     @Test
@@ -88,6 +89,54 @@ class AnonymizerViewModelTest {
 
         assertFalse(viewModel.uiState.value.enabledTypes.contains(PiiType.EMAIL))
         assertEquals("ana@example.com", viewModel.uiState.value.sanitizedText)
+    }
+
+    @Test
+    fun `altera marcador para vetos futuros sem reprocessar resultado`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("Texto de origem")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+        val originalResult = viewModel.uiState.value.sanitizedText
+
+        viewModel.onSettingsApplied(
+            enabledTypes = viewModel.uiState.value.enabledTypes,
+            maskingMode = viewModel.uiState.value.maskingMode,
+            cleanWhatsAppNoise = viewModel.uiState.value.cleanWhatsAppNoise,
+            manualRedactionMarker = " [CONFIDENCIAL] "
+        )
+
+        assertEquals("[CONFIDENCIAL]", viewModel.uiState.value.manualRedactionMarker)
+
+        assertEquals(originalResult, viewModel.uiState.value.sanitizedText)
+        assertFalse(viewModel.uiState.value.isProcessing)
+
+        viewModel.replaceSelectedResult(
+            target = "Texto",
+            replacement = viewModel.uiState.value.manualRedactionMarker,
+            occurrenceIndex = 0
+        )
+        advanceUntilIdle()
+        assertEquals("[CONFIDENCIAL] de origem", viewModel.uiState.value.sanitizedText)
+
+        viewModel.onSettingsApplied(
+            enabledTypes = viewModel.uiState.value.enabledTypes,
+            maskingMode = viewModel.uiState.value.maskingMode,
+            cleanWhatsAppNoise = viewModel.uiState.value.cleanWhatsAppNoise,
+            manualRedactionMarker = " "
+        )
+
+        assertEquals("[CONFIDENCIAL]", viewModel.uiState.value.manualRedactionMarker)
+
+        viewModel.onSettingsApplied(
+            enabledTypes = viewModel.uiState.value.enabledTypes,
+            maskingMode = viewModel.uiState.value.maskingMode,
+            cleanWhatsAppNoise = viewModel.uiState.value.cleanWhatsAppNoise,
+            manualRedactionMarker = "x".repeat(50)
+        )
+
+        assertEquals(40, viewModel.uiState.value.manualRedactionMarker.length)
     }
 
     @Test

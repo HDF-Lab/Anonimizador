@@ -5,8 +5,11 @@
     <string name="privacy_mode_reversible">Gera marcadores e um mapa temporário em memória durante o processamento. Neste app, não há ação para restaurar os valores originais; não conte com este modo para recuperá-los. O app também não garante o apagamento seguro da memória.</string>
     <string name="privacy_whatsapp_noise_explanation">Remove avisos automáticos reconhecidos pelo app. Isso é separado da detecção de dados pessoais; revise o resultado para confirmar que nenhuma mensagem desejada foi removida.</string>
     <string name="privacy_output_warning">A detecção usa padrões e pode deixar passar dados pessoais. Confira todo o conteúdo antes de copiar, salvar ou compartilhar.</string>
-    <string name="privacy_manual_replace_warning">Trechos selecionados ou localizados serão substituídos pelo marcador [REMOVIDO]. Revise o resultado antes de compartilhar.</string>
-    <string name="manual_redaction_marker">[REMOVIDO]</string>
+    <string name="privacy_manual_replace_warning">Trechos selecionados ou localizados serão substituídos pelo marcador configurado nas configurações. Revise o resultado antes de compartilhar.</string>
+    <string name="manual_redaction_settings_title">Marcador de veto manual</string>
+    <string name="manual_redaction_settings_description">O novo marcador será usado nos próximos vetos nesta sessão. Os trechos já vetados não serão alterados.</string>
+    <string name="manual_redaction_marker_label">Marcador</string>
+    <string name="manual_redaction_marker_supporting_text">%1$d/%2$d caracteres. Não pode ficar vazio.</string>
     <string name="manual_result_fully_removed">Todo o texto do resultado foi removido manualmente. Use Desfazer para restaurá-lo.</string>
     <string name="manual_result_empty">O resultado atual está vazio ou contém apenas espaços. Use Desfazer ou Refazer para alterar a substituição manual.</string>
     <plurals name="manually_removed_count">

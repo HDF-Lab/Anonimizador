@@ -20,28 +20,39 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.FindReplace
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.hdf.anonimizador.domain.model.DocumentSource
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
+import br.com.hdf.anonimizador.R
 import br.com.hdf.anonimizador.presentation.editor.components.EmptyResultCard
 import br.com.hdf.anonimizador.presentation.editor.components.ErrorCard
 import br.com.hdf.anonimizador.presentation.editor.components.InputDocumentCard
@@ -153,6 +164,12 @@ fun AnonymizerScreen(
         onMaskingModeChanged = viewModel::onMaskingModeChanged,
         onToggleWhatsAppNoise = viewModel::onToggleWhatsAppNoise,
         onEnabledTypesChanged = viewModel::onEnabledTypesChanged,
+        onSettingsApplied = viewModel::onSettingsApplied,
+        onReplaceSelectedResult = viewModel::replaceSelectedResult,
+        onReplaceFirstResult = viewModel::replaceFirstInResult,
+        onReplaceAllResult = viewModel::replaceAllInResult,
+        onUndoManualReplacement = viewModel::undoManualReplacement,
+        onRedoManualReplacement = viewModel::redoManualReplacement,
 
         onCopyClick = {
             val text = uiState.sanitizedText
@@ -221,6 +238,7 @@ fun AnonymizerScreen(
  * Recebe os dados e eventos por parâmetros.
  */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun AnonymizerContent(
     uiState: AnonymizerUiState,
     onInputTextChanged: (String) -> Unit,
@@ -228,6 +246,12 @@ fun AnonymizerContent(
     onMaskingModeChanged: (MaskMode) -> Unit,
     onToggleWhatsAppNoise: (Boolean) -> Unit,
     onEnabledTypesChanged: (Set<PiiType>) -> Unit,
+    onSettingsApplied: (Set<PiiType>, MaskMode, Boolean) -> Unit = { _, _, _ -> },
+    onReplaceSelectedResult: (String, String, Int) -> Unit = { _, _, _ -> },
+    onReplaceFirstResult: (String, String) -> Unit = { _, _ -> },
+    onReplaceAllResult: (String, String) -> Unit = { _, _ -> },
+    onUndoManualReplacement: () -> Unit = {},
+    onRedoManualReplacement: () -> Unit = {},
     onCopyClick: () -> Unit,
     onClearClick: () -> Unit,
     onPickFileClick: () -> Unit,
@@ -244,22 +268,35 @@ fun AnonymizerContent(
 
     val hasInput = uiState.inputText.isNotBlank()
     val hasOutput = uiState.sanitizedText.isNotBlank()
+    val hasResult = hasOutput ||
+            uiState.manuallyRemovedCount > 0 ||
+            uiState.canUndoManualReplacement ||
+            uiState.canRedoManualReplacement
 
     val isLargeInput =
         uiState.inputText.length > MAX_PREVIEW_CHARS
 
     val isLargeOutput =
         uiState.sanitizedText.length > MAX_PREVIEW_CHARS
+    val redactionMarker = stringResource(R.string.manual_redaction_marker)
+
+    var pendingSelectedReplacement by remember(uiState.sanitizedText) {
+        mutableStateOf<SelectedTextReplacement?>(null)
+    }
 
     val totalEntities =
         uiState.entityCounts.values.sum()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
 
         topBar = {
 
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                ),
                 title = {
                     Column {
                         Text(
@@ -306,6 +343,44 @@ fun AnonymizerContent(
 
         },
 
+        floatingActionButton = {
+            val selectedReplacement = pendingSelectedReplacement
+            if (
+                !isLargeOutput &&
+                !uiState.isProcessing &&
+                selectedReplacement != null &&
+                selectedReplacement.target.isNotEmpty() &&
+                selectedReplacement.target != redactionMarker
+            ) {
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = {
+                        PlainTooltip {
+                            Text("Ocultar trecho selecionado")
+                        }
+                    },
+                    state = rememberTooltipState()
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            onReplaceSelectedResult(
+                                selectedReplacement.target,
+                                selectedReplacement.replacement,
+                                selectedReplacement.occurrenceIndex
+                            )
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FindReplace,
+                            contentDescription = "Ocultar trecho selecionado"
+                        )
+                    }
+                }
+            }
+        },
+
         bottomBar = {
             if (hasOutput) {
                 ResultActionsBar(
@@ -327,9 +402,9 @@ fun AnonymizerContent(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
 
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             InputDocumentCard(
                 inputText = uiState.inputText,
@@ -351,14 +426,30 @@ fun AnonymizerContent(
             }
 
             // 5. Resultado ou estado vazio.
-            if (hasOutput) {
+            if (hasResult) {
 
                 OutputCard(
                     sanitizedText = uiState.sanitizedText,
                     totalEntities = totalEntities,
                     removedNoiseCount =
                         uiState.removedNoiseCount,
-                    isLargeOutput = isLargeOutput
+                    manuallyRemovedCount = uiState.manuallyRemovedCount,
+                    redactionMarker = redactionMarker,
+                    isLargeOutput = isLargeOutput,
+                    isProcessing = uiState.isProcessing,
+                    canUndo = uiState.canUndoManualReplacement,
+                    canRedo = uiState.canRedoManualReplacement,
+                    onSelectedReplacementChanged = { target, replacement, occurrenceIndex ->
+                        pendingSelectedReplacement = SelectedTextReplacement(
+                            target = target,
+                            replacement = replacement,
+                            occurrenceIndex = occurrenceIndex
+                        )
+                    },
+                    onReplaceFirst = onReplaceFirstResult,
+                    onReplaceAll = onReplaceAllResult,
+                    onUndo = onUndoManualReplacement,
+                    onRedo = onRedoManualReplacement
                 )
 
             } else if (
@@ -381,10 +472,7 @@ fun AnonymizerContent(
             cleanWhatsAppNoise = uiState.cleanWhatsAppNoise,
             isProcessing = uiState.isProcessing,
 
-            onEnabledTypesChanged = onEnabledTypesChanged,
-            onTogglePiiType = onTogglePiiType,
-            onMaskingModeChanged = onMaskingModeChanged,
-            onToggleWhatsAppNoise = onToggleWhatsAppNoise,
+            onSettingsApplied = onSettingsApplied,
 
             onDismiss = {
                 showSettingsSheet = false
@@ -435,6 +523,11 @@ fun AnonymizerContent(
 
 }
 
+private data class SelectedTextReplacement(
+    val target: String,
+    val replacement: String,
+    val occurrenceIndex: Int
+)
 
 
 // -----------------------------------------------------

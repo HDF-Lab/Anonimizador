@@ -11,8 +11,11 @@ data class AnonymizerUiState (
     val cleanWhatsAppNoise: Boolean = true,
     val entityCounts: Map<PiiType, Int> = emptyMap(),
     val removedNoiseCount: Int = 0,
+    val manuallyRemovedCount: Int = 0,
     val isProcessing: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val canUndoManualReplacement: Boolean = false,
+    val canRedoManualReplacement: Boolean = false
 ) {
     val totalMaskedCount: Int
         get() = entityCounts.values.sum()

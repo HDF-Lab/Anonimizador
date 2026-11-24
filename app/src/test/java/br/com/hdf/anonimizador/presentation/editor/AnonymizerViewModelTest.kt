@@ -9,9 +9,11 @@ import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
 import br.com.hdf.anonimizador.domain.model.ChatParseResult
 import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.DocumentSource
+import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiMatch
 import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.domain.parser.ChatExportParser
+import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -89,6 +91,153 @@ class AnonymizerViewModelTest {
     }
 
     @Test
+    fun `deve preservar substituicao manual quando o trecho continua no resultado`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("CPF: 529.982.247-25")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[DOCUMENTO]", 0)
+        advanceUntilIdle()
+        assertEquals("CPF: [DOCUMENTO]", viewModel.uiState.value.sanitizedText)
+
+        viewModel.onMaskingModeChanged(MaskMode.REVERSIBLE)
+        advanceUntilIdle()
+
+        assertEquals("CPF: [DOCUMENTO]", viewModel.uiState.value.sanitizedText)
+    }
+
+    @Test
+    fun `deve descartar substituicao manual quando o trecho nao existe apos reprocessar`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("CPF: 529.982.247-25")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[DOCUMENTO]", 0)
+        advanceUntilIdle()
+        viewModel.onTogglePiiType(PiiType.CPF)
+        advanceUntilIdle()
+
+        assertEquals("CPF: 529.982.247-25", viewModel.uiState.value.sanitizedText)
+
+        viewModel.onTogglePiiType(PiiType.CPF)
+        advanceUntilIdle()
+
+        assertEquals("CPF: [CPF_1]", viewModel.uiState.value.sanitizedText)
+    }
+
+    @Test
+    fun `deve substituir todas as ocorrencias informadas no resultado`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("ana@example.com")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceAllInResult("[EMAIL_1]", "[EMAIL]")
+        advanceUntilIdle()
+
+        assertEquals("[EMAIL]", viewModel.uiState.value.sanitizedText)
+    }
+
+    @Test
+    fun `conta remocoes manuais e atualiza a contagem ao desfazer e refazer`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("textotexto")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceAllInResult("texto", "")
+        advanceUntilIdle()
+        assertEquals("", viewModel.uiState.value.sanitizedText)
+        assertEquals(2, viewModel.uiState.value.manuallyRemovedCount)
+
+        viewModel.undoManualReplacement()
+        advanceUntilIdle()
+        assertEquals("textotexto", viewModel.uiState.value.sanitizedText)
+        assertEquals(0, viewModel.uiState.value.manuallyRemovedCount)
+
+        viewModel.redoManualReplacement()
+        advanceUntilIdle()
+        assertEquals("", viewModel.uiState.value.sanitizedText)
+        assertEquals(2, viewModel.uiState.value.manuallyRemovedCount)
+    }
+
+    @Test
+    fun `deve desfazer e refazer substituicao manual`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("CPF: 529.982.247-25")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[DOCUMENTO]", 0)
+        advanceUntilIdle()
+        assertEquals("CPF: [DOCUMENTO]", viewModel.uiState.value.sanitizedText)
+        assertEquals(1, viewModel.uiState.value.manuallyRemovedCount)
+        assertTrue(viewModel.uiState.value.canUndoManualReplacement)
+        assertFalse(viewModel.uiState.value.canRedoManualReplacement)
+
+        viewModel.undoManualReplacement()
+        advanceUntilIdle()
+        assertEquals("CPF: [CPF_1]", viewModel.uiState.value.sanitizedText)
+        assertFalse(viewModel.uiState.value.canUndoManualReplacement)
+        assertTrue(viewModel.uiState.value.canRedoManualReplacement)
+
+        viewModel.redoManualReplacement()
+        advanceUntilIdle()
+        assertEquals("CPF: [DOCUMENTO]", viewModel.uiState.value.sanitizedText)
+        assertTrue(viewModel.uiState.value.canUndoManualReplacement)
+        assertFalse(viewModel.uiState.value.canRedoManualReplacement)
+    }
+
+    @Test
+    fun `nova substituicao limpa a pilha de refazer`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("CPF: 529.982.247-25, CPF: 529.982.247-25")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[DOCUMENTO]", 0)
+        advanceUntilIdle()
+        viewModel.undoManualReplacement()
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[IDENTIFICADOR]", 0)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.sanitizedText.contains("[IDENTIFICADOR]"))
+        assertTrue(viewModel.uiState.value.canUndoManualReplacement)
+        assertFalse(viewModel.uiState.value.canRedoManualReplacement)
+    }
+
+    @Test
+    fun `deve limpar substituicoes manuais quando a entrada mudar`() = runTest {
+        val viewModel = createViewModel(
+            extractor = FakeDocumentExtractor("CPF: 529.982.247-25")
+        )
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        viewModel.replaceSelectedResult("[CPF_1]", "[DOCUMENTO]", 0)
+        advanceUntilIdle()
+        assertEquals("CPF: [DOCUMENTO]", viewModel.uiState.value.sanitizedText)
+
+        viewModel.onInputTextChanged("Outro texto")
+        assertFalse(viewModel.uiState.value.canUndoManualReplacement)
+        assertFalse(viewModel.uiState.value.canRedoManualReplacement)
+        viewModel.onFileSelected(DocumentSource("content://document/test.txt"))
+        advanceUntilIdle()
+
+        assertEquals("CPF: [CPF_1]", viewModel.uiState.value.sanitizedText)
+    }
+
+    @Test
     fun `deve atualizar texto apos extracao de arquivo`() = runTest {
         val extractor = FakeDocumentExtractor("Texto extraído")
         val viewModel = createViewModel(extractor)
@@ -156,7 +305,12 @@ class AnonymizerViewModelTest {
             textMasker = SafeTextMasker()
         )
 
-        return AnonymizerViewModel(useCase, extractor, dispatcher)
+        return AnonymizerViewModel(
+            anonymizeContentUseCase = useCase,
+            applyManualTextReplacementsUseCase = ApplyManualTextReplacementsUseCase(),
+            documentExtractor = extractor,
+            computationDispatcher = dispatcher
+        )
     }
 
     private class FakeDocumentExtractor(

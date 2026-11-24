@@ -10,6 +10,7 @@ import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.masking.TextMasker
 import br.com.hdf.anonimizador.data.parser.AndroidWhatsAppParser
 import br.com.hdf.anonimizador.domain.parser.ChatExportParser
+import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.Binds
 import dagger.Module
@@ -77,4 +78,9 @@ object AppProvidesModule {
         spanConsolidator = spanConsolidator,
         textMasker = textMasker
     )
+
+    @Provides
+    @Singleton
+    fun provideApplyManualTextReplacementsUseCase(): ApplyManualTextReplacementsUseCase =
+        ApplyManualTextReplacementsUseCase()
 }

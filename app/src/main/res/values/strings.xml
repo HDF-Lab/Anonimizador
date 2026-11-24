@@ -1,3 +1,25 @@
 <resources>
     <string name="app_name">AnonimizadorOffline</string>
+    <string name="privacy_pii_types_explanation">Os tipos marcados serão procurados e substituídos. Tipos desmarcados podem continuar visíveis. A detecção usa padrões conhecidos e pode deixar passar dados pessoais; revise o resultado.</string>
+    <string name="privacy_mode_irreversible">Substitui os dados detectados por marcadores, como [EMAIL_1], sem gerar um mapa para restaurar os valores originais. Recomendado para compartilhar, mas a detecção não encontra necessariamente todos os dados pessoais.</string>
+    <string name="privacy_mode_reversible">Gera marcadores e um mapa temporário em memória durante o processamento. Neste app, não há ação para restaurar os valores originais; não conte com este modo para recuperá-los. O app também não garante o apagamento seguro da memória.</string>
+    <string name="privacy_whatsapp_noise_explanation">Remove avisos automáticos reconhecidos pelo app. Isso é separado da detecção de dados pessoais; revise o resultado para confirmar que nenhuma mensagem desejada foi removida.</string>
+    <string name="privacy_output_warning">A detecção usa padrões e pode deixar passar dados pessoais. Confira todo o conteúdo antes de copiar, salvar ou compartilhar.</string>
+    <string name="privacy_manual_replace_warning">Trechos selecionados ou localizados serão substituídos pelo marcador [REMOVIDO]. Revise o resultado antes de compartilhar.</string>
+    <string name="manual_redaction_marker">[REMOVIDO]</string>
+    <string name="manual_result_fully_removed">Todo o texto do resultado foi removido manualmente. Use Desfazer para restaurá-lo.</string>
+    <string name="manual_result_empty">O resultado atual está vazio ou contém apenas espaços. Use Desfazer ou Refazer para alterar a substituição manual.</string>
+    <plurals name="manually_removed_count">
+        <item quantity="one">%1$d item removido manualmente</item>
+        <item quantity="other">%1$d itens removidos manualmente</item>
+    </plurals>
+    <string name="anonymized_result_counts">%1$s · %2$s</string>
+    <plurals name="detected_data_count">
+        <item quantity="one">%1$d dado detectado</item>
+        <item quantity="other">%1$d dados detectados</item>
+    </plurals>
+    <plurals name="manual_redaction_count">
+        <item quantity="one">%1$d trecho vetado</item>
+        <item quantity="other">%1$d trechos vetados</item>
+    </plurals>
 </resources>

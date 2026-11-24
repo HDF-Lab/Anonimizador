@@ -133,3 +133,4 @@ The use case propagates cancellation and does not publish a cancelled result.
 - `SafeTextMasker`
 - `PiiMatch`
 - `AnonymizationOutput`
+- `ApplyManualTextReplacementsUseCase` (see [UC-002 — Manual Text Redaction](./UC002-Manual_Text_Redaction.md))

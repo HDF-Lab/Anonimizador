@@ -7,10 +7,13 @@ import br.com.hdf.anonimizador.di.DefaultDispatcher
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.AppliedManualTextReplacementCommand
 import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.DocumentSource
+import br.com.hdf.anonimizador.domain.model.ManualTextReplacementCommand
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
+import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -33,6 +36,7 @@ private const val INPUT_DEBOUNCE_MS = 300L
 @HiltViewModel
 class AnonymizerViewModel @Inject constructor(
     private val anonymizeContentUseCase: AnonymizeContentUseCase,
+    private val applyManualTextReplacementsUseCase: ApplyManualTextReplacementsUseCase,
     private val documentExtractor: DocumentExtractor,
     @DefaultDispatcher private val computationDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -44,6 +48,8 @@ class AnonymizerViewModel @Inject constructor(
 
     private var processingJob: Job? = null
     private var extractionJob: Job? = null
+    private val undoHistory = mutableListOf<AppliedManualTextReplacementCommand>()
+    private val redoHistory = mutableListOf<AppliedManualTextReplacementCommand>()
 
     // -------------------------------------------------
     // Entrada de texto
@@ -65,10 +71,19 @@ class AnonymizerViewModel @Inject constructor(
     ) {
         if (_uiState.value.inputText == text) return
 
+        undoHistory.clear()
+        redoHistory.clear()
         _uiState.update {
             it.copy(
                 inputText = text,
-                errorMessage = null
+                errorMessage = null,
+                sanitizedText = "",
+                entityCounts = emptyMap(),
+                removedNoiseCount = 0,
+                manuallyRemovedCount = 0,
+                isProcessing = false,
+                canUndoManualReplacement = false,
+                canRedoManualReplacement = false
             )
         }
 
@@ -93,6 +108,149 @@ class AnonymizerViewModel @Inject constructor(
         }
 
         scheduleAnonymization(debounceMs = 0L)
+    }
+
+    fun replaceSelectedResult(
+        target: String,
+        replacement: String,
+        occurrenceIndex: Int
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing || occurrenceIndex < 0) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceOccurrence(
+                target = target,
+                replacement = replacement,
+                occurrenceIndex = occurrenceIndex
+            ),
+            notFoundMessage = "O trecho selecionado não foi encontrado no resultado."
+        )
+    }
+
+    fun replaceAllInResult(
+        target: String,
+        replacement: String
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceAll(
+                target = target,
+                replacement = replacement
+            ),
+            notFoundMessage = "O texto informado não foi encontrado no resultado."
+        )
+    }
+
+    fun replaceFirstInResult(
+        target: String,
+        replacement: String
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceOccurrence(
+                target = target,
+                replacement = replacement,
+                occurrenceIndex = 0
+            ),
+            notFoundMessage = "O texto informado não foi encontrado no resultado."
+        )
+    }
+
+    fun undoManualReplacement() {
+        if (_uiState.value.isProcessing || undoHistory.isEmpty()) return
+
+        val command = undoHistory.last()
+        val currentText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val restoredText = withContext(computationDispatcher) {
+                    command.undo(currentText)
+                }
+                currentCoroutineContext().ensureActive()
+
+                if (restoredText == null) {
+                    _uiState.update {
+                        it.copy(
+                            isProcessing = false,
+                            errorMessage = "Não foi possível desfazer a última substituição."
+                        )
+                    }
+                    return@launch
+                }
+
+                undoHistory.removeAt(undoHistory.lastIndex)
+                redoHistory.add(command)
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = restoredText,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = "Não foi possível desfazer a última substituição."
+                    )
+                }
+            }
+        }
+    }
+
+    fun redoManualReplacement() {
+        if (_uiState.value.isProcessing || redoHistory.isEmpty()) return
+
+        val command = redoHistory.last()
+        val currentText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val result = withContext(computationDispatcher) {
+                    applyManualTextReplacementsUseCase(currentText, listOf(command.command))
+                }
+                currentCoroutineContext().ensureActive()
+
+                val redoneCommand = result.appliedCommands.singleOrNull()
+                if (redoneCommand == null) {
+                    _uiState.update {
+                        it.copy(
+                            isProcessing = false,
+                            errorMessage = "O trecho da substituição não está mais disponível para refazer."
+                        )
+                    }
+                    return@launch
+                }
+
+                redoHistory.removeAt(redoHistory.lastIndex)
+                undoHistory.add(redoneCommand)
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = result.text,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = "Não foi possível refazer a substituição."
+                    )
+                }
+            }
+        }
     }
 
     fun onEnabledTypesChanged(types: Set<PiiType>) {
@@ -124,6 +282,31 @@ class AnonymizerViewModel @Inject constructor(
 
         _uiState.update {
             it.copy(cleanWhatsAppNoise = enabled)
+        }
+
+        scheduleAnonymization(debounceMs = 0L)
+    }
+
+    fun onSettingsApplied(
+        enabledTypes: Set<PiiType>,
+        maskingMode: MaskMode,
+        cleanWhatsAppNoise: Boolean
+    ) {
+        val current = _uiState.value
+        if (
+            current.enabledTypes == enabledTypes &&
+            current.maskingMode == maskingMode &&
+            current.cleanWhatsAppNoise == cleanWhatsAppNoise
+        ) {
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                enabledTypes = enabledTypes.toSet(),
+                maskingMode = maskingMode,
+                cleanWhatsAppNoise = cleanWhatsAppNoise
+            )
         }
 
         scheduleAnonymization(debounceMs = 0L)
@@ -202,17 +385,25 @@ class AnonymizerViewModel @Inject constructor(
         val snapshot = _uiState.value
 
         if (snapshot.inputText.isBlank()) {
+            undoHistory.clear()
+            redoHistory.clear()
             _uiState.update {
                 it.copy(
                     sanitizedText = "",
                     entityCounts = emptyMap(),
                     removedNoiseCount = 0,
+                    manuallyRemovedCount = 0,
                     isProcessing = false,
-                    errorMessage = null
+                    errorMessage = null,
+                    canUndoManualReplacement = false,
+                    canRedoManualReplacement = false
                 )
             }
             return
         }
+
+        val activeCommands = undoHistory.map { it.command }
+        val pendingRedoCommands = redoHistory.asReversed().map { it.command }
 
         processingJob = viewModelScope.launch {
             try {
@@ -243,9 +434,39 @@ class AnonymizerViewModel @Inject constructor(
 
                 currentCoroutineContext().ensureActive()
 
+                val (replacementResult, rebasedRedoHistory) =
+                    withContext(computationDispatcher) {
+                        val appliedManualReplacements = applyManualTextReplacementsUseCase(
+                            text = output.sanitizedText,
+                            commands = activeCommands
+                        )
+                        var redoText = appliedManualReplacements.text
+                        val rebasedRedo = mutableListOf<AppliedManualTextReplacementCommand>()
+
+                        pendingRedoCommands.forEach { command ->
+                            val redoResult = applyManualTextReplacementsUseCase(
+                                text = redoText,
+                                commands = listOf(command)
+                            )
+                            redoResult.appliedCommands.singleOrNull()?.let { appliedCommand ->
+                                redoText = redoResult.text
+                                rebasedRedo.add(appliedCommand)
+                            }
+                        }
+
+                        appliedManualReplacements to rebasedRedo.asReversed()
+                    }
+                currentCoroutineContext().ensureActive()
+
+                undoHistory.clear()
+                undoHistory.addAll(replacementResult.appliedCommands)
+                redoHistory.clear()
+                redoHistory.addAll(rebasedRedoHistory)
+                updateHistoryAvailability()
+
                 _uiState.update {
                     it.copy(
-                        sanitizedText = output.sanitizedText,
+                        sanitizedText = replacementResult.text,
                         entityCounts = output.entityCounts,
                         removedNoiseCount = output.removedNoiseCount,
                         isProcessing = false,
@@ -320,6 +541,8 @@ class AnonymizerViewModel @Inject constructor(
 
         processingJob = null
         extractionJob = null
+        undoHistory.clear()
+        redoHistory.clear()
 
         _uiState.value = AnonymizerUiState()
     }
@@ -330,7 +553,71 @@ class AnonymizerViewModel @Inject constructor(
 
         processingJob = null
         extractionJob = null
+        undoHistory.clear()
+        redoHistory.clear()
 
         super.onCleared()
     }
+
+    private fun applyManualReplacement(
+        command: ManualTextReplacementCommand,
+        notFoundMessage: String
+    ) {
+        if (_uiState.value.isProcessing) return
+
+        val sourceText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val result = withContext(computationDispatcher) {
+                    applyManualTextReplacementsUseCase(sourceText, listOf(command))
+                }
+                currentCoroutineContext().ensureActive()
+
+                val appliedCommand = result.appliedCommands.singleOrNull()
+                if (appliedCommand == null) {
+                    _uiState.update {
+                        it.copy(isProcessing = false, errorMessage = notFoundMessage)
+                    }
+                    return@launch
+                }
+
+                undoHistory.add(appliedCommand)
+                redoHistory.clear()
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = result.text,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = "Não foi possível aplicar a substituição. Tente novamente."
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateHistoryAvailability() {
+        _uiState.update {
+            it.copy(
+                manuallyRemovedCount = undoHistory.sumOf { command ->
+                    command.changes.count { change ->
+                        change.originalText != change.replacementText
+                    }
+                },
+                canUndoManualReplacement = undoHistory.isNotEmpty(),
+                canRedoManualReplacement = redoHistory.isNotEmpty()
+            )
+        }
+    }
+
 }

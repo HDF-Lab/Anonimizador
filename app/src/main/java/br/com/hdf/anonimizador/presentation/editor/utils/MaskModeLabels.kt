@@ -4,5 +4,5 @@ import br.com.hdf.anonimizador.domain.model.MaskMode
 
 fun MaskMode.toDisplayLabel(): String = when (this) {
     MaskMode.IRREVERSIBLE -> "Irreversível"
-    MaskMode.REVERSIBLE -> "Reversível (RAM)"
+    MaskMode.REVERSIBLE -> "Com mapa temporário (RAM)"
 }

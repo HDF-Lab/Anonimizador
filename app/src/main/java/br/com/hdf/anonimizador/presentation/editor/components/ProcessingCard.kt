@@ -19,14 +19,15 @@ fun ProcessingCard() {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Anonimizando documento",
+                text = "Processando conteúdo",
                 style = MaterialTheme.typography.titleSmall
             )
 
@@ -35,7 +36,7 @@ fun ProcessingCard() {
             )
 
             Text(
-                text = "Aguarde enquanto os dados são processados.",
+                text = "Aguarde enquanto o resultado é atualizado.",
                 style = MaterialTheme.typography.bodySmall
             )
         }

@@ -25,12 +25,14 @@ The user enters or changes text, or changes an enabled PII type, masking mode, o
 
 1. The application receives the original text and current configuration.
 2. If the text is blank, the application returns an empty result.
-3. If WhatsApp cleanup is enabled and the text matches the supported parser format, the application prepares the normalized text and identifies participant matches.
-4. The application detects information from the PII types enabled in the request.
-5. Detected matches and participant matches are combined.
-6. The application validates and consolidates overlaps using the longest valid interval policy.
-7. The application applies the selected masking mode.
-8. The application returns the anonymized text, entity counts, optional reversal vault, and removed WhatsApp system line count.
+3. If the text matches the supported WhatsApp format, the application parses it when cleanup is enabled or participant anonymization is enabled.
+4. When cleanup is enabled, the application removes supported system noise and prepares normalized text. When cleanup is disabled, it preserves the original text.
+5. If participant anonymization is enabled, the parser identifies participant names in message headers and marks every occurrence of those names in the prepared text, including message bodies.
+6. The application detects information from the PII types enabled in the request.
+7. Detected matches and participant matches are combined.
+8. The application validates and consolidates overlaps using the longest valid interval policy.
+9. The application applies the selected masking mode.
+10. The application returns the anonymized text, entity counts, optional reversal vault, and removed WhatsApp system line count.
 
 ## 5. Alternative Flows
 
@@ -44,7 +46,7 @@ The application performs no detection and leaves the text unchanged.
 
 ### A3 — WhatsApp Cleanup Disabled
 
-The application does not run the WhatsApp parser and processes the original text as text.
+The application preserves the original text without removing WhatsApp system noise. If participant anonymization is enabled and the text matches the supported WhatsApp format, the parser still identifies participant names and marks their occurrences in message headers and bodies for masking.
 
 ### A4 — Reversible Masking
 
@@ -86,6 +88,8 @@ The use case propagates cancellation and does not publish a cancelled result.
 | BR-008 | Irreversible masking produces an empty reversal vault. |
 | BR-009 | Processing is local and supports coroutine cancellation. |
 | BR-010 | The latest ViewModel operation prevents superseded work from publishing a result. |
+| BR-011 | When participant anonymization is enabled for a supported WhatsApp export, every occurrence of identified participant names in the prepared text, including message bodies, is eligible for masking regardless of the noise-cleanup setting. |
+| BR-012 | Disabling WhatsApp noise cleanup preserves the original text and prevents system-noise removal; it does not disable participant identification or anonymization. |
 
 ## 8. Postconditions
 
@@ -108,6 +112,8 @@ The use case propagates cancellation and does not publish a cancelled result.
 - [ ] Handles empty text.
 - [ ] Handles content without detected PII.
 - [ ] Parses supported WhatsApp text when cleanup is enabled.
+- [ ] Identifies and masks participant-name occurrences in message bodies when participant anonymization is enabled.
+- [ ] Preserves original WhatsApp text and still masks participant names when noise cleanup is disabled.
 - [ ] Rejects invalid detection intervals.
 - [ ] Resolves overlaps deterministically.
 - [ ] Supports irreversible masking.

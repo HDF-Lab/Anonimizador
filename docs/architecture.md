@@ -187,7 +187,7 @@ The general processing flow is:
 
 The input content is prepared before detection.
 
-When applicable, the WhatsApp parser identifies participants and handles supported automatic message artifacts.
+When the input matches a supported WhatsApp export, the parser identifies participants if cleanup or participant anonymization is enabled. With cleanup enabled, it removes supported automatic message artifacts and prepares normalized text. With cleanup disabled, it preserves the original text while still identifying participant names when participant anonymization is enabled. All occurrences of identified names in the prepared text, including message bodies, are provided as participant matches for masking.
 
 The prepared text becomes the input for subsequent detection stages.
 
@@ -342,7 +342,7 @@ Potential extensions include:
 New implementations should follow the existing domain contracts whenever possible, preserving separation of concerns and minimizing changes to existing components.
 
 
-## 10. Application Use Cases
+## 10. Application User Cases
 
 | Use Case | Responsibility | Documentation |
 |---|---|---|

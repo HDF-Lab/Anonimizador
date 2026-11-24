@@ -76,8 +76,9 @@ class AnonymizeContentUseCase(
         context.ensureActive()
 
         val shouldParseWhatsApp =
-            request.cleanWhatsAppNoise &&
-                    whatsAppParser.canParse(request.rawText)
+            whatsAppParser.canParse(request.rawText) &&
+                    (request.cleanWhatsAppNoise ||
+                            PiiType.PARTICIPANTE_WHATSAPP in request.enabledTypes)
 
         if (!shouldParseWhatsApp) {
             return PreparedText(
@@ -87,7 +88,10 @@ class AnonymizeContentUseCase(
             )
         }
 
-        val parsed = whatsAppParser.parseAndClean(request.rawText)
+        val parsed = whatsAppParser.parseAndClean(
+            rawText = request.rawText,
+            cleanNoise = request.cleanWhatsAppNoise
+        )
 
         context.ensureActive()
 

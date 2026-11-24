@@ -138,7 +138,10 @@ class AnonymizerViewModelTest {
 
         val parser = object : WhatsAppParser {
             override fun canParse(rawText: String): Boolean = false
-            override suspend fun parseAndClean(rawText: String): WhatsAppParseResult =
+            override suspend fun parseAndClean(
+                rawText: String,
+                cleanNoise: Boolean
+            ): WhatsAppParseResult =
                 WhatsAppParseResult(false, rawText, 0)
         }
 

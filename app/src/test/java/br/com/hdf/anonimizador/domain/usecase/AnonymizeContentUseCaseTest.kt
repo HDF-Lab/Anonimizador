@@ -129,6 +129,50 @@ class AnonymizeContentUseCaseTest {
     }
 
     @Test
+    fun `deve mascarar participantes no texto original quando limpeza de ruido estiver desabilitada`() = runTest {
+        val text = "01/01/2026 10:30 - João: João confirmou."
+        val participantMatches = listOf(
+            PiiMatch(
+                startIndex = text.indexOf("João"),
+                endIndex = text.indexOf("João") + "João".length,
+                originalValue = "João",
+                type = PiiType.PARTICIPANTE_WHATSAPP
+            ),
+            PiiMatch(
+                startIndex = text.lastIndexOf("João"),
+                endIndex = text.lastIndexOf("João") + "João".length,
+                originalValue = "João",
+                type = PiiType.PARTICIPANTE_WHATSAPP
+            )
+        )
+        parser = FakeWhatsAppParser(
+            canParse = true,
+            parseResult = WhatsAppParseResult(
+                isWhatsAppFormat = true,
+                normalizedText = text,
+                removedSystemLinesCount = 0,
+                participantMatches = participantMatches
+            )
+        )
+
+        val output = createUseCase(RecordingDetector())(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = setOf(PiiType.PARTICIPANTE_WHATSAPP),
+                cleanWhatsAppNoise = false
+            )
+        )
+
+        assertEquals(
+            "01/01/2026 10:30 - [PARTICIPANTE_WHATSAPP_1]: [PARTICIPANTE_WHATSAPP_1] confirmou.",
+            output.sanitizedText
+        )
+        assertEquals(0, output.removedSystemLinesCount)
+        assertEquals(1, parser.parseCallCount)
+        assertEquals(false, parser.lastCleanNoise)
+    }
+
+    @Test
     fun `deve preservar texto quando WhatsApp nao estiver habilitado para participantes`() = runTest {
         val participantMatch = PiiMatch(
             startIndex = 0,
@@ -374,11 +418,17 @@ class AnonymizeContentUseCaseTest {
 
         var parseCallCount: Int = 0
             private set
+        var lastCleanNoise: Boolean? = null
+            private set
 
         override fun canParse(rawText: String): Boolean = canParse
 
-        override suspend fun parseAndClean(rawText: String): WhatsAppParseResult {
+        override suspend fun parseAndClean(
+            rawText: String,
+            cleanNoise: Boolean
+        ): WhatsAppParseResult {
             parseCallCount++
+            lastCleanNoise = cleanNoise
             return parseResult
         }
     }

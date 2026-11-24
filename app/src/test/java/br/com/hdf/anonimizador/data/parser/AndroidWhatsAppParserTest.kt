@@ -128,6 +128,31 @@ class AndroidWhatsAppParserTest {
     }
 
     @Test
+    fun `deve marcar ocorrencias de participantes no corpo sem limpar o ruido`() {
+        val text = """
+            01/01/2026 10:30 - João: João confirmou.
+            01/01/2026 10:31 - Ana: Falei com João ontem.
+        """.trimIndent()
+
+        val result = kotlinx.coroutines.runBlocking {
+            parser.parseAndClean(text, cleanNoise = false)
+        }
+
+        assertEquals(text, result.normalizedText)
+        assertEquals(0, result.removedSystemLinesCount)
+        assertEquals(
+            listOf("João", "João", "Ana", "João"),
+            result.participantMatches.map { it.originalValue }
+        )
+        result.participantMatches.forEach { match ->
+            assertEquals(
+                match.originalValue,
+                result.normalizedText.substring(match.startIndex, match.endIndex)
+            )
+        }
+    }
+
+    @Test
     fun `deve preservar mensagens com multiplas linhas`() {
         val text = """
             01/01/2026 10:30 - Ana: Primeira linha

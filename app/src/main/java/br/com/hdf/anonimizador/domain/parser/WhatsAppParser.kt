@@ -10,7 +10,7 @@ import br.com.hdf.anonimizador.domain.model.WhatsAppParseResult
  * - Agrupar mensagens e continuações.
  * - Normalizar a estrutura das mensagens.
  * - Identificar os participantes.
- * - Remover mensagens de sistema conforme a política definida.
+ * - Remover mensagens de sistema quando solicitado.
  *
  * Não realiza anonimização dos participantes.
  */
@@ -19,6 +19,7 @@ interface WhatsAppParser {
     fun canParse(rawText: String): Boolean
 
     suspend fun parseAndClean(
-        rawText: String
+        rawText: String,
+        cleanNoise: Boolean = true
     ): WhatsAppParseResult
 }

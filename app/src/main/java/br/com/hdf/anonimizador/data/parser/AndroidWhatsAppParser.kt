@@ -32,7 +32,8 @@ class AndroidWhatsAppParser internal constructor(
     }
 
     override suspend fun parseAndClean(
-        rawText: String
+        rawText: String,
+        cleanNoise: Boolean
     ): WhatsAppParseResult {
 
         if (!canParse(rawText)) {
@@ -48,13 +49,13 @@ class AndroidWhatsAppParser internal constructor(
         val entries = groupMultilineEntries(rawText)
 
         val normalizedText = StringBuilder()
-        val participantMatches = mutableListOf<PiiMatch>()
+        val participantNames = linkedSetOf<String>()
 
         var removedCount = 0
 
         entries.forEach { entry ->
 
-            if (noisePolicy.isNoise(entry)) {
+            if (cleanNoise && noisePolicy.isNoise(entry)) {
                 removedCount++
                 return@forEach
             }
@@ -62,6 +63,12 @@ class AndroidWhatsAppParser internal constructor(
             val sender = entry.sender
                 ?.trim()
                 ?.takeIf(String::isNotEmpty)
+
+            sender?.let(participantNames::add)
+
+            if (!cleanNoise) {
+                return@forEach
+            }
 
             val cleanBody = noisePolicy
                 .sanitizeInvisibleChars(entry.body)
@@ -73,22 +80,20 @@ class AndroidWhatsAppParser internal constructor(
             normalizedText.append(" - ")
 
             if (sender != null) {
-                appendParticipant(
-                    text = normalizedText,
-                    matches = participantMatches,
-                    sender = sender
-                )
+                normalizedText.append(sender)
             }
 
             normalizedText.append(": ")
             normalizedText.append(cleanBody)
         }
 
+        val outputText = if (cleanNoise) normalizedText.toString() else rawText
+
         return WhatsAppParseResult(
             isWhatsAppFormat = true,
-            normalizedText = normalizedText.toString(),
+            normalizedText = outputText,
             removedSystemLinesCount = removedCount,
-            participantMatches = participantMatches
+            participantMatches = findParticipantMatches(outputText, participantNames)
         )
     }
 
@@ -161,23 +166,27 @@ class AndroidWhatsAppParser internal constructor(
         }
     }
 
-    private fun appendParticipant(
-        text: StringBuilder,
-        matches: MutableList<PiiMatch>,
-        sender: String
-    ) {
+    private fun findParticipantMatches(
+        text: String,
+        participantNames: Set<String>
+    ): List<PiiMatch> {
+        if (participantNames.isEmpty()) return emptyList()
 
-        val startIndex = text.length
-
-        text.append(sender)
-
-        val endIndex = text.length
-
-        matches += PiiMatch(
-            startIndex = startIndex,
-            endIndex = endIndex,
-            originalValue = sender,
-            type = PiiType.PARTICIPANTE_WHATSAPP
+        val namesPattern = participantNames
+            .sortedByDescending(String::length)
+            .joinToString("|") { Regex.escape(it) }
+        val pattern = Regex(
+            """(?<![\p{L}\p{N}])(?:$namesPattern)(?![\p{L}\p{N}])""",
+            RegexOption.IGNORE_CASE
         )
+
+        return pattern.findAll(text).map { match ->
+            PiiMatch(
+                startIndex = match.range.first,
+                endIndex = match.range.last + 1,
+                originalValue = match.value,
+                type = PiiType.PARTICIPANTE_WHATSAPP
+            )
+        }.toList()
     }
 }

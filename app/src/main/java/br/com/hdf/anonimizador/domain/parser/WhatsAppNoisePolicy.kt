@@ -22,10 +22,11 @@ internal class WhatsAppNoisePolicy {
             "you deleted this message",
             "this message was deleted"
         )
-
         private val SYSTEM_NOTIFICATION_PREFIXES = listOf(
+            "as mensagens e ligações são protegidas com a criptografia de ponta a ponta",
             "as mensagens e as chamadas são protegidas com a criptografia de ponta a ponta",
-            "messages and calls are end-to-end encrypted"
+            "messages and calls are end-to-end encrypted",
+            "you use a default timer for disappearing messages in new chats"
         )
 
         private val SYSTEM_EVENT_PATTERNS = listOf(
@@ -60,6 +61,11 @@ internal class WhatsAppNoisePolicy {
             Regex("""^.+ changed their phone number\.?$""")
         )
 
+        private val SENDER_INDEPENDENT_SYSTEM_EVENT_PATTERNS = listOf(
+            Regex("""^.+ desativou as mensagens temporárias(?:\. mudar duração)?\.?$"""),
+            Regex("""^.+ turned off disappearing messages(?:\. change duration)?\.?$""")
+        )
+
         private val INVISIBLE_CHARACTERS = setOf(
             '\u200E',
             '\u200F',
@@ -86,6 +92,10 @@ internal class WhatsAppNoisePolicy {
         if (body in EXACT_SYSTEM_MARKERS) return true
 
         if (SYSTEM_NOTIFICATION_PREFIXES.any(body::startsWith)) {
+            return true
+        }
+
+        if (SENDER_INDEPENDENT_SYSTEM_EVENT_PATTERNS.any { it.matches(body) }) {
             return true
         }
 

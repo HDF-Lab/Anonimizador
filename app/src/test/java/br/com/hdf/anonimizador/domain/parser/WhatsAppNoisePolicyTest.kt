@@ -43,6 +43,16 @@ class WhatsAppNoisePolicyTest {
     }
 
     @Test
+    fun `deve identificar desativacao de mensagens temporarias com remetente e acao`() {
+        val entry = RawChatEntry(
+            "10:48",
+            "Janus Filho Janilson",
+            "Janus Filho Janilson desativou as mensagens temporárias. Mudar duração"
+        )
+        assertTrue(policy.isNoise(entry))
+    }
+
+    @Test
     fun `deve preservar evento textual com remetente`() {
         val entry = RawChatEntry("10:30", "Ana", "João adicionou Maria")
         assertFalse(policy.isNoise(entry))

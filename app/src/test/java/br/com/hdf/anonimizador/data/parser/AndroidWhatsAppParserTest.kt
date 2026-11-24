@@ -65,6 +65,21 @@ class AndroidWhatsAppParserTest {
     }
 
     @Test
+    fun `deve remover aviso de desativacao de mensagens temporarias com acao`() {
+        val text = """
+            17/07/2026 10:48 - Janus Filho Janilson: Janus Filho Janilson desativou as mensagens temporárias. Mudar duração
+            17/07/2026 10:49 - Ana: Olá!
+        """.trimIndent()
+
+        val result = kotlinx.coroutines.runBlocking {
+            parser.parseAndClean(text)
+        }
+
+        assertEquals(1, result.removedSystemLinesCount)
+        assertEquals("17/07/2026 10:49 - Ana: Olá!", result.normalizedText)
+    }
+
+    @Test
     fun `deve gerar participantMatches para cada ocorrencia de participante`() {
         val text = """
             01/01/2026 10:30 - Ana: Olá!

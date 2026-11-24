@@ -1,9 +1,8 @@
-
 package br.com.hdf.anonimizador.domain.parser
 
 import java.util.Locale
 
-internal class WhatsAppNoisePolicy {
+internal class DefaultWhatsAppNoisePolicy : NoisePolicy {
 
     companion object {
 
@@ -84,7 +83,7 @@ internal class WhatsAppNoisePolicy {
         private val WHITESPACE_REGEX = Regex("""\s+""")
     }
 
-    fun isNoise(entry: RawChatEntry): Boolean {
+    override fun isNoise(entry: RawChatEntry): Boolean {
         val body = normalize(entry.body)
 
         if (body.isEmpty()) return true
@@ -106,7 +105,7 @@ internal class WhatsAppNoisePolicy {
         return false
     }
 
-    fun sanitizeInvisibleChars(text: String): String =
+    override fun sanitizeInvisibleChars(text: String): String =
         buildString(text.length) {
             text.forEach { char ->
                 if (char !in INVISIBLE_CHARACTERS) {

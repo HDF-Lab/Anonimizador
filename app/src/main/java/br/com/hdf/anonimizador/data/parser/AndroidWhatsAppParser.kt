@@ -4,15 +4,16 @@ package br.com.hdf.anonimizador.data.parser
 import br.com.hdf.anonimizador.domain.model.PiiMatch
 import br.com.hdf.anonimizador.domain.model.PiiType
 import br.com.hdf.anonimizador.domain.model.WhatsAppParseResult
+import br.com.hdf.anonimizador.domain.parser.DefaultWhatsAppNoisePolicy
 import br.com.hdf.anonimizador.domain.parser.RawChatEntry
-import br.com.hdf.anonimizador.domain.parser.WhatsAppNoisePolicy
+import br.com.hdf.anonimizador.domain.parser.NoisePolicy
 import br.com.hdf.anonimizador.domain.parser.WhatsAppParser
 
 class AndroidWhatsAppParser internal constructor(
-    private val noisePolicy: WhatsAppNoisePolicy
+    private val noisePolicy: NoisePolicy
 ) : WhatsAppParser {
 
-    constructor() : this(WhatsAppNoisePolicy())
+    constructor() : this(DefaultWhatsAppNoisePolicy())
 
     companion object {
 

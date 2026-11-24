@@ -5,13 +5,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-class WhatsAppNoisePolicyTest {
+class DefaultWhatsAppNoisePolicyTest {
 
-    private lateinit var policy: WhatsAppNoisePolicy
+    private lateinit var policy: NoisePolicy
 
     @Before
     fun setUp() {
-        policy = WhatsAppNoisePolicy()
+        policy = DefaultWhatsAppNoisePolicy()
     }
 
     @Test

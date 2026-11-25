@@ -29,10 +29,10 @@ The user enters or changes text, or changes an enabled PII type, masking mode, o
 4. If the selected parser's platform has noise cleanup enabled or its participant PII type is enabled, the application parses the content.
 5. When cleanup is enabled for the selected platform, the application removes supported noise and prepares normalized text. When cleanup is disabled, it preserves the original text.
 6. If the selected parser provides a participant PII type and that type is enabled, the parser identifies participant names and marks every occurrence in the prepared text.
-7. The application detects information from the PII types enabled in the request.
+7. The application detects information from the PII types enabled in the request, including URLs beginning with `http://`, `https://`, or `www.` when link detection is enabled.
 8. Detected matches and participant matches are combined.
 9. The application validates and consolidates overlaps using the longest valid interval policy.
-10. The application applies the selected masking mode.
+10. The application replaces detected matches, including enabled URLs, with consistent markers such as `[LINK_1]` according to the selected masking mode.
 11. The application returns the anonymized text, entity counts, optional reversal vault, and removed-noise count.
 
 ## 5. Alternative Flows
@@ -45,23 +45,27 @@ The application returns the prepared text unchanged and empty entity counts.
 
 The application performs no detection and leaves the text unchanged.
 
-### A3 — WhatsApp Cleanup Disabled
+### A3 — Link Detection Disabled
+
+The application preserves URLs when the `LINK` type is disabled. When enabled, supported URLs are replaced with markers; the URL text is redacted rather than removed without a marker. Bare domains without `http://`, `https://`, or `www.` are not recognized by this detector.
+
+### A4 — WhatsApp Cleanup Disabled
 
 The application preserves the original text without removing WhatsApp system noise. If participant anonymization is enabled and the text matches the supported WhatsApp format, the parser still identifies participant names and marks their occurrences in message headers and bodies for masking.
 
-### A4 — Reversible Masking
+### A5 — Reversible Masking
 
 The application replaces matches with consistent identifiers and includes a tag-to-original-value vault in `AnonymizationOutput`. The vault is not currently stored or restored by the presentation layer.
 
-### A5 — Irreversible Masking
+### A6 — Irreversible Masking
 
 The application replaces matches with identifiers and returns no reversal vault.
 
-### A6 — Invalid Detection Match
+### A7 — Invalid Detection Match
 
 The span consolidator ignores matches that do not represent a valid interval of the exact prepared text.
 
-### A7 — Configuration Changed During Processing
+### A8 — Configuration Changed During Processing
 
 The ViewModel cancels the previous processing job and presents only the result from the latest input and configuration.
 
@@ -91,6 +95,8 @@ The use case propagates cancellation and does not publish a cancelled result.
 | BR-010 | The latest ViewModel operation prevents superseded work from publishing a result. |
 | BR-011 | When participant anonymization is enabled for a supported WhatsApp export, every occurrence of identified participant names in the prepared text, including message bodies, is eligible for masking regardless of the noise-cleanup setting. |
 | BR-012 | Disabling WhatsApp noise cleanup preserves the original text and prevents system-noise removal; it does not disable participant identification or anonymization. |
+| BR-013 | Link detection is controlled by the `LINK` type and recognizes URLs beginning with `http://`, `https://`, or `www.`. |
+| BR-014 | Recognized URLs are replaced with consistent `[LINK_n]` markers; bare domains without a supported prefix may remain visible. |
 
 ## 8. Postconditions
 
@@ -110,6 +116,7 @@ The use case propagates cancellation and does not publish a cancelled result.
 
 - [ ] Accepts text input.
 - [ ] Processes only enabled PII types.
+- [ ] Replaces enabled supported URLs with `[LINK_n]` markers and preserves URLs when link detection is disabled.
 - [ ] Handles empty text.
 - [ ] Handles content without detected PII.
 - [ ] Parses supported WhatsApp text when cleanup is enabled.

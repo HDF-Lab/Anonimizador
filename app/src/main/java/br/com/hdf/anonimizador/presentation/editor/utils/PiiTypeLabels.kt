@@ -18,4 +18,5 @@ fun PiiType.toDisplayLabel(): Int = when (this) {
     PiiType.ENDERECO_FISICO -> R.string.pii_type_physical_address
     PiiType.NOME_PROPRIO -> R.string.pii_type_person_name
     PiiType.CNH -> R.string.pii_type_drivers_license
+    PiiType.LINK -> R.string.pii_type_link
 }

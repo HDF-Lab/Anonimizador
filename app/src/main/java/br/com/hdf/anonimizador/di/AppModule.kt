@@ -1,6 +1,7 @@
 package br.com.hdf.anonimizador.di
 
 import br.com.hdf.anonimizador.data.detector.BrazilRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.UrlRegexPiiDetector
 import br.com.hdf.anonimizador.data.ingestion.AndroidDocumentExtractor
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
@@ -42,6 +43,10 @@ abstract class AppBindingsModule {
     @Binds
     @IntoSet
     abstract fun bindBrazilRegexDetector(impl: BrazilRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindUrlRegexDetector(impl: UrlRegexPiiDetector): PiiDetector
 }
 
 @Module

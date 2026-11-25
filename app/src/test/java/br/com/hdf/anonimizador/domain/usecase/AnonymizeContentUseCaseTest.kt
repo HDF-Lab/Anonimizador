@@ -1,5 +1,6 @@
 package br.com.hdf.anonimizador.domain.usecase
 
+import br.com.hdf.anonimizador.data.detector.UrlRegexPiiDetector
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
 import br.com.hdf.anonimizador.domain.detector.PiiDetector
@@ -123,6 +124,30 @@ class AnonymizeContentUseCaseTest {
         assertEquals(mapOf(PiiType.CPF to 1), output.entityCounts)
         assertTrue(output.reversalVault.isEmpty())
         assertEquals(setOf(PiiType.CPF), detector.lastEnabledTypes)
+    }
+
+    @Test
+    fun `deve mascarar URLs habilitadas e preservar URLs quando desabilitadas`() = runTest {
+        val text = "Acesse https://example.com/conta."
+        val useCase = createUseCase(UrlRegexPiiDetector())
+
+        val anonymized = useCase(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = setOf(PiiType.LINK)
+            )
+        )
+        val unchanged = useCase(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = emptySet()
+            )
+        )
+
+        assertEquals("Acesse [LINK_1].", anonymized.sanitizedText)
+        assertEquals(mapOf(PiiType.LINK to 1), anonymized.entityCounts)
+        assertEquals(text, unchanged.sanitizedText)
+        assertTrue(unchanged.entityCounts.isEmpty())
     }
 
     @Test

@@ -71,6 +71,7 @@
     <string name="pii_type_physical_address">Endereço</string>
     <string name="pii_type_person_name">Nome</string>
     <string name="pii_type_drivers_license">CNH</string>
+    <string name="pii_type_link">Links e URLs</string>
     <string name="clean_whatsapp_noise_title">Limpar ruídos do WhatsApp</string>
 
     <string name="error_manual_selection_not_found">O trecho selecionado não foi encontrado no resultado.</string>

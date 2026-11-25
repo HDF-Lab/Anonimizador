@@ -88,6 +88,14 @@ fun AnonymizerScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    val saveTxtSuccessMessage = stringResource(R.string.save_txt_success)
+    val saveTxtErrorMessage = stringResource(R.string.save_txt_error)
+    val copyTextTooLargeMessage = stringResource(R.string.copy_text_too_large)
+    val clipboardAnonymizedTextLabel = stringResource(R.string.clipboard_anonymized_text_label)
+    val copyResultSuccessMessage = stringResource(R.string.copy_result_success)
+    val copyResultErrorMessage = stringResource(R.string.copy_result_error)
+    val defaultExportFileName = stringResource(R.string.default_export_file_name)
+
     // Gerenciador de área de transferência do Android.
     val clipboardManager = context.getSystemService(
         Context.CLIPBOARD_SERVICE
@@ -140,9 +148,9 @@ fun AnonymizerScreen(
                 }
 
                 val message = if (saved) {
-                    context.getString(R.string.save_txt_success)
+                    saveTxtSuccessMessage
                 } else {
-                    context.getString(R.string.save_txt_error)
+                    saveTxtErrorMessage
                 }
 
                 Toast.makeText(
@@ -178,7 +186,7 @@ fun AnonymizerScreen(
                 text.length > MAX_CLIPBOARD_CHARS -> {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.copy_text_too_large),
+                        copyTextTooLargeMessage,
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -187,20 +195,20 @@ fun AnonymizerScreen(
                     runCatching {
                         clipboardManager.setPrimaryClip(
                             ClipData.newPlainText(
-                                context.getString(R.string.clipboard_anonymized_text_label),
+                                clipboardAnonymizedTextLabel,
                                 text
                             )
                         )
                     }.onSuccess {
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copy_result_success),
+                            copyResultSuccessMessage,
                             Toast.LENGTH_SHORT
                         ).show()
                     }.onFailure {
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copy_result_error),
+                            copyResultErrorMessage,
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -210,7 +218,7 @@ fun AnonymizerScreen(
 
         onSaveTxtClick = {
             if (uiState.sanitizedText.isNotBlank()) {
-                saveTxtLauncher.launch(context.getString(R.string.default_export_file_name))
+                saveTxtLauncher.launch(defaultExportFileName)
             }
         },
 

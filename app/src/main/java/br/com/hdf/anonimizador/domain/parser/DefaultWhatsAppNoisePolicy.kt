@@ -57,7 +57,9 @@ internal class DefaultWhatsAppNoisePolicy : NoisePolicy {
             Regex("""^.+ changed their security code with .+\.?$"""),
 
             Regex("""^.+ mudou de número de telefone(?: para .+)?\.?$"""),
-            Regex("""^.+ changed their phone number\.?$""")
+            Regex("""^.+ changed their phone number\.?$"""),
+                
+            Regex("""(?i)localiza[cç][ãa]o\s+ao\s+vivo(?:\s+compartilhada)?""")
         )
 
         private val SENDER_INDEPENDENT_SYSTEM_EVENT_PATTERNS = listOf(

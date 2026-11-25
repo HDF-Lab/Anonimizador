@@ -68,10 +68,10 @@
     <string name="pii_type_license_plate">Placa</string>
     <string name="pii_type_ip_address">Endereço IP</string>
     <string name="pii_type_whatsapp_participant">Participante</string>
-    <string name="pii_type_physical_address">Endereço</string>
+    <string name="pii_type_physical_address">Endereço físico</string>
     <string name="pii_type_person_name">Nome</string>
     <string name="pii_type_drivers_license">CNH</string>
-    <string name="pii_type_link">Links e URLs</string>
+    <string name="pii_type_link">Links, URLs e localização</string>
     <string name="clean_whatsapp_noise_title">Limpar ruídos do WhatsApp</string>
 
     <string name="error_manual_selection_not_found">O trecho selecionado não foi encontrado no resultado.</string>
@@ -93,7 +93,7 @@
     <string name="error_zip_txt_not_found">Nenhum arquivo TXT foi encontrado dentro do ZIP.</string>
     <string name="error_manual_replacement_failed">Não foi possível aplicar a substituição. Tente novamente.</string>
 
-    <string name="privacy_pii_types_explanation">Os tipos marcados serão procurados e substituídos. Tipos desmarcados podem continuar visíveis. A detecção usa padrões conhecidos e pode deixar passar dados pessoais; revise o resultado.</string>
+    <string name="privacy_pii_types_explanation">Os tipos marcados serão procurados e substituídos. Tipos desmarcados podem continuar visíveis. A detecção usa padrões conhecidos e pode deixar passar dados pessoais; nomes exigem campos identificados, endereços exigem rótulo e logradouro reconhecido, e CNH exige contexto explícito. Revise o resultado.</string>
     <string name="privacy_mode_irreversible">Substitui os dados detectados por marcadores, como [EMAIL_1], sem gerar um mapa para restaurar os valores originais. Recomendado para compartilhar, mas a detecção não encontra necessariamente todos os dados pessoais.</string>
     <string name="privacy_mode_reversible">Gera marcadores e um mapa temporário em memória durante o processamento. Neste app, não há ação para restaurar os valores originais; não conte com este modo para recuperá-los. O app também não garante o apagamento seguro da memória.</string>
     <string name="privacy_whatsapp_noise_explanation">Remove avisos automáticos reconhecidos pelo app. Isso é separado da detecção de dados pessoais; revise o resultado para confirmar que nenhuma mensagem desejada foi removida.</string>

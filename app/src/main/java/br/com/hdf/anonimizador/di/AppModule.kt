@@ -1,6 +1,9 @@
 package br.com.hdf.anonimizador.di
 
 import br.com.hdf.anonimizador.data.detector.BrazilRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.CnhRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.NameRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.PhysicalAddressRegexPiiDetector
 import br.com.hdf.anonimizador.data.detector.UrlRegexPiiDetector
 import br.com.hdf.anonimizador.data.ingestion.AndroidDocumentExtractor
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
@@ -47,6 +50,18 @@ abstract class AppBindingsModule {
     @Binds
     @IntoSet
     abstract fun bindUrlRegexDetector(impl: UrlRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindCnhRegexDetector(impl: CnhRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindNameRegexDetector(impl: NameRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindPhysicalAddressRegexDetector(impl: PhysicalAddressRegexPiiDetector): PiiDetector
 }
 
 @Module

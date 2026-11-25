@@ -38,4 +38,14 @@ class UrlRegexPiiDetectorTest {
 
         assertTrue(matches.isEmpty())
     }
+
+    @Test
+    fun `detecta URI geo com coordenadas`() = runTest {
+        val text = "geo:-23.5505,-46.6333"
+
+        val matches = detector.detect(text, setOf(PiiType.LINK))
+
+        assertEquals(text, matches.single().originalValue)
+        assertTrue(matches.single().isValidFor(text))
+    }
 }

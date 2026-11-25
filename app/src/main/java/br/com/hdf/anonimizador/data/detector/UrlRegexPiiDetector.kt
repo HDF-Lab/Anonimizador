@@ -25,10 +25,7 @@ class UrlRegexPiiDetector @Inject constructor() : PiiDetector {
         for (match in URL_REGEX.findAll(text)) {
             context.ensureActive()
 
-            var endIndex = match.range.last + 1
-            while (endIndex > match.range.first && text[endIndex - 1] in TRAILING_PUNCTUATION) {
-                endIndex--
-            }
+            val endIndex = trimmedEndIndex(text, match.range.first, match.range.last + 1)
 
             if (endIndex <= match.range.first) continue
 
@@ -42,11 +39,24 @@ class UrlRegexPiiDetector @Inject constructor() : PiiDetector {
             )
         }
 
-        return matches
+        return matches.sortedBy(PiiMatch::startIndex)
     }
 
     private companion object {
-        val URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)[^\s<>"']+""")
+        val URL_REGEX = Regex(
+            """(?i)\b(?:https?://|www\.)[^\s<>"']+|\bgeo:-?\d{1,3}(?:\.\d+)?,-?\d{1,3}(?:\.\d+)?(?:\?[^\s<>"']*)?"""
+        )
+        val MAP_LOCATION_REGEX = Regex(
+            """(?i)(?:maps(?:\.app)?\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl/maps|google\.[a-z.]+/maps|geo:-?\d{1,3}(?:\.\d+)?,-?\d{1,3}(?:\.\d+)?)"""
+        )
         const val TRAILING_PUNCTUATION = ".,!?;:)]}"
+
+        fun trimmedEndIndex(text: String, startIndex: Int, initialEndIndex: Int): Int {
+            var endIndex = initialEndIndex
+            while (endIndex > startIndex && text[endIndex - 1] in TRAILING_PUNCTUATION) {
+                endIndex--
+            }
+            return endIndex
+        }
     }
 }

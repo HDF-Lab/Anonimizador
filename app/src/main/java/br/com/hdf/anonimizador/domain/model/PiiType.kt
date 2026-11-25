@@ -12,6 +12,6 @@ enum class PiiType {
     PLACA_VEICULO,
     ENDERECO_IP,
     NOME_PROPRIO,
-    ENDERECO_FISICO
+    ENDERECO_FISICO,
+    LINK
 }
-

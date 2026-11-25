@@ -11,7 +11,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import br.com.hdf.anonimizador.R
 
 @Composable
 fun ProcessingCard() {
@@ -19,14 +21,15 @@ fun ProcessingCard() {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Anonimizando documento",
+                text = stringResource(R.string.processing_content),
                 style = MaterialTheme.typography.titleSmall
             )
 
@@ -35,7 +38,7 @@ fun ProcessingCard() {
             )
 
             Text(
-                text = "Aguarde enquanto os dados são processados.",
+                text = stringResource(R.string.processing_wait_message),
                 style = MaterialTheme.typography.bodySmall
             )
         }

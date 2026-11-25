@@ -1,6 +1,10 @@
 package br.com.hdf.anonimizador.di
 
 import br.com.hdf.anonimizador.data.detector.BrazilRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.CnhRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.NameRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.PhysicalAddressRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.UrlRegexPiiDetector
 import br.com.hdf.anonimizador.data.ingestion.AndroidDocumentExtractor
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
@@ -10,6 +14,7 @@ import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.masking.TextMasker
 import br.com.hdf.anonimizador.data.parser.AndroidWhatsAppParser
 import br.com.hdf.anonimizador.domain.parser.ChatExportParser
+import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.Binds
 import dagger.Module
@@ -41,6 +46,22 @@ abstract class AppBindingsModule {
     @Binds
     @IntoSet
     abstract fun bindBrazilRegexDetector(impl: BrazilRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindUrlRegexDetector(impl: UrlRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindCnhRegexDetector(impl: CnhRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindNameRegexDetector(impl: NameRegexPiiDetector): PiiDetector
+
+    @Binds
+    @IntoSet
+    abstract fun bindPhysicalAddressRegexDetector(impl: PhysicalAddressRegexPiiDetector): PiiDetector
 }
 
 @Module
@@ -77,4 +98,9 @@ object AppProvidesModule {
         spanConsolidator = spanConsolidator,
         textMasker = textMasker
     )
+
+    @Provides
+    @Singleton
+    fun provideApplyManualTextReplacementsUseCase(): ApplyManualTextReplacementsUseCase =
+        ApplyManualTextReplacementsUseCase()
 }

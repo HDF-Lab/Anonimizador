@@ -3,14 +3,18 @@ package br.com.hdf.anonimizador.presentation.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.hdf.anonimizador.R
 import br.com.hdf.anonimizador.di.DefaultDispatcher
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractionException
 import br.com.hdf.anonimizador.domain.ingestion.DocumentExtractor
 import br.com.hdf.anonimizador.domain.model.AnonymizeRequest
+import br.com.hdf.anonimizador.domain.model.AppliedManualTextReplacementCommand
 import br.com.hdf.anonimizador.domain.model.ChatPlatform
 import br.com.hdf.anonimizador.domain.model.DocumentSource
+import br.com.hdf.anonimizador.domain.model.ManualTextReplacementCommand
 import br.com.hdf.anonimizador.domain.model.MaskMode
 import br.com.hdf.anonimizador.domain.model.PiiType
+import br.com.hdf.anonimizador.domain.usecase.ApplyManualTextReplacementsUseCase
 import br.com.hdf.anonimizador.domain.usecase.AnonymizeContentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -33,6 +37,7 @@ private const val INPUT_DEBOUNCE_MS = 300L
 @HiltViewModel
 class AnonymizerViewModel @Inject constructor(
     private val anonymizeContentUseCase: AnonymizeContentUseCase,
+    private val applyManualTextReplacementsUseCase: ApplyManualTextReplacementsUseCase,
     private val documentExtractor: DocumentExtractor,
     @DefaultDispatcher private val computationDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -44,6 +49,8 @@ class AnonymizerViewModel @Inject constructor(
 
     private var processingJob: Job? = null
     private var extractionJob: Job? = null
+    private val undoHistory = mutableListOf<AppliedManualTextReplacementCommand>()
+    private val redoHistory = mutableListOf<AppliedManualTextReplacementCommand>()
 
     // -------------------------------------------------
     // Entrada de texto
@@ -65,10 +72,19 @@ class AnonymizerViewModel @Inject constructor(
     ) {
         if (_uiState.value.inputText == text) return
 
+        undoHistory.clear()
+        redoHistory.clear()
         _uiState.update {
             it.copy(
                 inputText = text,
-                errorMessage = null
+                errorMessage = null,
+                sanitizedText = "",
+                entityCounts = emptyMap(),
+                removedNoiseCount = 0,
+                manuallyRemovedCount = 0,
+                isProcessing = false,
+                canUndoManualReplacement = false,
+                canRedoManualReplacement = false
             )
         }
 
@@ -93,6 +109,149 @@ class AnonymizerViewModel @Inject constructor(
         }
 
         scheduleAnonymization(debounceMs = 0L)
+    }
+
+    fun replaceSelectedResult(
+        target: String,
+        replacement: String,
+        occurrenceIndex: Int
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing || occurrenceIndex < 0) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceOccurrence(
+                target = target,
+                replacement = replacement,
+                occurrenceIndex = occurrenceIndex
+            ),
+            notFoundMessage = R.string.error_manual_selection_not_found
+        )
+    }
+
+    fun replaceAllInResult(
+        target: String,
+        replacement: String
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceAll(
+                target = target,
+                replacement = replacement
+            ),
+            notFoundMessage = R.string.error_manual_search_not_found
+        )
+    }
+
+    fun replaceFirstInResult(
+        target: String,
+        replacement: String
+    ) {
+        if (target.isEmpty() || _uiState.value.isProcessing) return
+
+        applyManualReplacement(
+            command = ManualTextReplacementCommand.ReplaceOccurrence(
+                target = target,
+                replacement = replacement,
+                occurrenceIndex = 0
+            ),
+            notFoundMessage = R.string.error_manual_search_not_found
+        )
+    }
+
+    fun undoManualReplacement() {
+        if (_uiState.value.isProcessing || undoHistory.isEmpty()) return
+
+        val command = undoHistory.last()
+        val currentText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val restoredText = withContext(computationDispatcher) {
+                    command.undo(currentText)
+                }
+                currentCoroutineContext().ensureActive()
+
+                if (restoredText == null) {
+                    _uiState.update {
+                        it.copy(
+                            isProcessing = false,
+                            errorMessage = R.string.error_manual_undo
+                        )
+                    }
+                    return@launch
+                }
+
+                undoHistory.removeAt(undoHistory.lastIndex)
+                redoHistory.add(command)
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = restoredText,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = R.string.error_manual_undo
+                    )
+                }
+            }
+        }
+    }
+
+    fun redoManualReplacement() {
+        if (_uiState.value.isProcessing || redoHistory.isEmpty()) return
+
+        val command = redoHistory.last()
+        val currentText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val result = withContext(computationDispatcher) {
+                    applyManualTextReplacementsUseCase(currentText, listOf(command.command))
+                }
+                currentCoroutineContext().ensureActive()
+
+                val redoneCommand = result.appliedCommands.singleOrNull()
+                if (redoneCommand == null) {
+                    _uiState.update {
+                        it.copy(
+                            isProcessing = false,
+                            errorMessage = R.string.error_manual_redo_target_missing
+                        )
+                    }
+                    return@launch
+                }
+
+                redoHistory.removeAt(redoHistory.lastIndex)
+                undoHistory.add(redoneCommand)
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = result.text,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = R.string.error_manual_redo
+                    )
+                }
+            }
+        }
     }
 
     fun onEnabledTypesChanged(types: Set<PiiType>) {
@@ -127,6 +286,41 @@ class AnonymizerViewModel @Inject constructor(
         }
 
         scheduleAnonymization(debounceMs = 0L)
+    }
+
+    fun onSettingsApplied(
+        enabledTypes: Set<PiiType>,
+        maskingMode: MaskMode,
+        cleanWhatsAppNoise: Boolean,
+        manualRedactionMarker: String
+    ) {
+        val current = _uiState.value
+        val normalizedMarker = manualRedactionMarker.trim()
+            .take(MAX_MANUAL_REDACTION_MARKER_LENGTH)
+            .ifEmpty { current.manualRedactionMarker }
+        val anonymizationSettingsChanged =
+            current.enabledTypes != enabledTypes ||
+                    current.maskingMode != maskingMode ||
+                    current.cleanWhatsAppNoise != cleanWhatsAppNoise
+        if (
+            !anonymizationSettingsChanged &&
+            current.manualRedactionMarker == normalizedMarker
+        ) {
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                enabledTypes = enabledTypes.toSet(),
+                maskingMode = maskingMode,
+                cleanWhatsAppNoise = cleanWhatsAppNoise,
+                manualRedactionMarker = normalizedMarker
+            )
+        }
+
+        if (anonymizationSettingsChanged) {
+            scheduleAnonymization(debounceMs = 0L)
+        }
     }
 
     // -------------------------------------------------
@@ -184,7 +378,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível ler o arquivo selecionado. Tente novamente."
+                        errorMessage = R.string.error_read_selected_file
                     )
                 }
             }
@@ -202,17 +396,25 @@ class AnonymizerViewModel @Inject constructor(
         val snapshot = _uiState.value
 
         if (snapshot.inputText.isBlank()) {
+            undoHistory.clear()
+            redoHistory.clear()
             _uiState.update {
                 it.copy(
                     sanitizedText = "",
                     entityCounts = emptyMap(),
                     removedNoiseCount = 0,
+                    manuallyRemovedCount = 0,
                     isProcessing = false,
-                    errorMessage = null
+                    errorMessage = null,
+                    canUndoManualReplacement = false,
+                    canRedoManualReplacement = false
                 )
             }
             return
         }
+
+        val activeCommands = undoHistory.map { it.command }
+        val pendingRedoCommands = redoHistory.asReversed().map { it.command }
 
         processingJob = viewModelScope.launch {
             try {
@@ -243,9 +445,39 @@ class AnonymizerViewModel @Inject constructor(
 
                 currentCoroutineContext().ensureActive()
 
+                val (replacementResult, rebasedRedoHistory) =
+                    withContext(computationDispatcher) {
+                        val appliedManualReplacements = applyManualTextReplacementsUseCase(
+                            text = output.sanitizedText,
+                            commands = activeCommands
+                        )
+                        var redoText = appliedManualReplacements.text
+                        val rebasedRedo = mutableListOf<AppliedManualTextReplacementCommand>()
+
+                        pendingRedoCommands.forEach { command ->
+                            val redoResult = applyManualTextReplacementsUseCase(
+                                text = redoText,
+                                commands = listOf(command)
+                            )
+                            redoResult.appliedCommands.singleOrNull()?.let { appliedCommand ->
+                                redoText = redoResult.text
+                                rebasedRedo.add(appliedCommand)
+                            }
+                        }
+
+                        appliedManualReplacements to rebasedRedo.asReversed()
+                    }
+                currentCoroutineContext().ensureActive()
+
+                undoHistory.clear()
+                undoHistory.addAll(replacementResult.appliedCommands)
+                redoHistory.clear()
+                redoHistory.addAll(rebasedRedoHistory)
+                updateHistoryAvailability()
+
                 _uiState.update {
                     it.copy(
-                        sanitizedText = output.sanitizedText,
+                        sanitizedText = replacementResult.text,
                         entityCounts = output.entityCounts,
                         removedNoiseCount = output.removedNoiseCount,
                         isProcessing = false,
@@ -262,7 +494,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível validar o conteúdo detectado. Revise o texto e tente novamente."
+                        errorMessage = R.string.error_validate_detected_content
                     )
                 }
 
@@ -272,7 +504,7 @@ class AnonymizerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isProcessing = false,
-                        errorMessage = "Não foi possível concluir a anonimização. Tente novamente."
+                        errorMessage = R.string.error_anonymization_failed
                     )
                 }
             }
@@ -281,33 +513,33 @@ class AnonymizerViewModel @Inject constructor(
 
     private fun mapExtractionError(
         exception: DocumentExtractionException
-    ): String = when (exception) {
+    ): Int = when (exception) {
         is DocumentExtractionException.UnsupportedFormat ->
-            "Formato de arquivo não suportado. Use TXT, PDF ou ZIP."
+            R.string.error_unsupported_file_format
 
         is DocumentExtractionException.FileAccessFailure ->
-            "Não foi possível abrir o arquivo selecionado."
+            R.string.error_open_selected_file
 
         is DocumentExtractionException.InvalidFileSize ->
-            "O tamanho do arquivo não pôde ser confirmado. Selecione-o novamente."
+            R.string.error_confirm_file_size
 
         is DocumentExtractionException.FileTooLarge ->
-            "O arquivo excede o limite de 20 MB."
+            R.string.error_file_too_large
 
         is DocumentExtractionException.ExtractedTextTooLarge ->
-            "O texto extraído excede o limite de 10 MB."
+            R.string.error_extracted_text_too_large
 
         is DocumentExtractionException.PdfTextTooLarge ->
-            "O PDF produziu texto além do limite de 10 MB."
+            R.string.error_pdf_text_too_large
 
         is DocumentExtractionException.ZipEntriesLimitExceeded ->
-            "O ZIP contém mais entradas do que o limite suportado."
+            R.string.error_zip_too_many_entries
 
         is DocumentExtractionException.ZipContentTooLarge ->
-            "O conteúdo descompactado do ZIP excede o limite permitido."
+            R.string.error_zip_content_too_large
 
         is DocumentExtractionException.ZipTextFileNotFound ->
-            "Nenhum arquivo TXT foi encontrado dentro do ZIP."
+            R.string.error_zip_txt_not_found
     }
 
     // -------------------------------------------------
@@ -320,6 +552,8 @@ class AnonymizerViewModel @Inject constructor(
 
         processingJob = null
         extractionJob = null
+        undoHistory.clear()
+        redoHistory.clear()
 
         _uiState.value = AnonymizerUiState()
     }
@@ -330,7 +564,71 @@ class AnonymizerViewModel @Inject constructor(
 
         processingJob = null
         extractionJob = null
+        undoHistory.clear()
+        redoHistory.clear()
 
         super.onCleared()
     }
+
+    private fun applyManualReplacement(
+        command: ManualTextReplacementCommand,
+        notFoundMessage: Int
+    ) {
+        if (_uiState.value.isProcessing) return
+
+        val sourceText = _uiState.value.sanitizedText
+        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        processingJob = viewModelScope.launch {
+            try {
+                val result = withContext(computationDispatcher) {
+                    applyManualTextReplacementsUseCase(sourceText, listOf(command))
+                }
+                currentCoroutineContext().ensureActive()
+
+                val appliedCommand = result.appliedCommands.singleOrNull()
+                if (appliedCommand == null) {
+                    _uiState.update {
+                        it.copy(isProcessing = false, errorMessage = notFoundMessage)
+                    }
+                    return@launch
+                }
+
+                undoHistory.add(appliedCommand)
+                redoHistory.clear()
+                updateHistoryAvailability()
+                _uiState.update {
+                    it.copy(
+                        sanitizedText = result.text,
+                        isProcessing = false,
+                        errorMessage = null
+                    )
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        errorMessage = R.string.error_manual_replacement_failed
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateHistoryAvailability() {
+        _uiState.update {
+            it.copy(
+                manuallyRemovedCount = undoHistory.sumOf { command ->
+                    command.changes.count { change ->
+                        change.originalText != change.replacementText
+                    }
+                },
+                canUndoManualReplacement = undoHistory.isNotEmpty(),
+                canRedoManualReplacement = redoHistory.isNotEmpty()
+            )
+        }
+    }
+
 }

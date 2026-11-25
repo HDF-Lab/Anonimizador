@@ -1,5 +1,9 @@
 package br.com.hdf.anonimizador.domain.usecase
 
+import br.com.hdf.anonimizador.data.detector.UrlRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.CnhRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.NameRegexPiiDetector
+import br.com.hdf.anonimizador.data.detector.PhysicalAddressRegexPiiDetector
 import br.com.hdf.anonimizador.data.masking.SafeTextMasker
 import br.com.hdf.anonimizador.domain.detector.DefaultSpanConsolidator
 import br.com.hdf.anonimizador.domain.detector.PiiDetector
@@ -123,6 +127,70 @@ class AnonymizeContentUseCaseTest {
         assertEquals(mapOf(PiiType.CPF to 1), output.entityCounts)
         assertTrue(output.reversalVault.isEmpty())
         assertEquals(setOf(PiiType.CPF), detector.lastEnabledTypes)
+    }
+
+    @Test
+    fun `deve mascarar URLs habilitadas e preservar URLs quando desabilitadas`() = runTest {
+        val text = "Acesse https://example.com/conta."
+        val useCase = createUseCase(UrlRegexPiiDetector())
+
+        val anonymized = useCase(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = setOf(PiiType.LINK)
+            )
+        )
+        val unchanged = useCase(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = emptySet()
+            )
+        )
+
+        assertEquals("Acesse [LINK_1].", anonymized.sanitizedText)
+        assertEquals(mapOf(PiiType.LINK to 1), anonymized.entityCounts)
+        assertEquals(text, unchanged.sanitizedText)
+        assertTrue(unchanged.entityCounts.isEmpty())
+    }
+
+    @Test
+    fun `deve mascarar CNH nome e endereço quando seus tipos estiverem habilitados`() = runTest {
+        val text = "Nome: Ana Silva\nCNH: 12345678901\nEndereço: Rua das Flores, 10"
+        val useCase = AnonymizeContentUseCase(
+            chatExportParsers = setOf(parser),
+            detectors = setOf(
+                CnhRegexPiiDetector(),
+                NameRegexPiiDetector(),
+                PhysicalAddressRegexPiiDetector()
+            ),
+            spanConsolidator = DefaultSpanConsolidator(),
+            textMasker = SafeTextMasker()
+        )
+
+        val output = useCase(
+            AnonymizeRequest(
+                rawText = text,
+                enabledTypes = setOf(
+                    PiiType.CNH,
+                    PiiType.NOME_PROPRIO,
+                    PiiType.ENDERECO_FISICO
+                ),
+                noiseCleanupPlatforms = emptySet()
+            )
+        )
+
+        assertEquals(
+            "Nome: [NOME_PROPRIO_1]\nCNH: [CNH_1]\nEndereço: [ENDERECO_FISICO_1]",
+            output.sanitizedText
+        )
+        assertEquals(
+            mapOf(
+                PiiType.CNH to 1,
+                PiiType.NOME_PROPRIO to 1,
+                PiiType.ENDERECO_FISICO to 1
+            ),
+            output.entityCounts
+        )
     }
 
     @Test
